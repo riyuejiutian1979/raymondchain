@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>营销分红中心 - RAYC 生态</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;font-family:system-ui,-apple-system,sans-serif;background:radial-gradient(circle at 20% 30%,#0a0f2a,#030617);color:#f0f3ff;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;background:rgba(15,25,55,.95);backdrop-filter:blur(12px);padding:12px 16px;border-bottom:1px solid rgba(79,172,254,.25);flex-wrap:wrap;gap:10px}
+.back-btn{color:#4facfe;text-decoration:none;font-size:14px;font-weight:600;display:flex;align-items:center;gap:4px;transition:.2s;white-space:nowrap}
+.back-btn:hover{color:#8cc4ff}
+.title{font-size:16px;font-weight:800;background:linear-gradient(135deg,#aaffff,#4facfe);-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+.top-actions{display:flex;align-items:center;gap:8px}
+.lang-switch{background:rgba(0,0,0,.4);border:1px solid #4facfe;color:#fff;border-radius:20px;padding:4px 8px;font-size:12px;outline:none;cursor:pointer}
+.connect-btn{background:linear-gradient(95deg,#2b6ef0,#1a4ed8);color:#fff;border:none;padding:7px 16px;border-radius:40px;font-weight:600;cursor:pointer;font-size:12px;transition:.2s;white-space:nowrap}
+.connect-btn.hidden{display:none}
+.wallet-info{font-size:11px;color:#b3ceff;background:rgba(0,0,0,.4);padding:5px 12px;border-radius:40px;font-family:monospace;display:none;white-space:nowrap}
+
+.content{padding:16px;max-width:600px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px}
+.card{background:rgba(12,22,48,.7);backdrop-filter:blur(12px);border-radius:20px;padding:18px;border:1px solid rgba(79,172,254,.25)}
+.card h2{font-size:15px;margin-bottom:14px;color:#90b4ff;display:flex;align-items:center;gap:8px}
+
+/* 用户信息卡 */
+.user-header{background:linear-gradient(135deg,rgba(43,110,240,.25),rgba(26,78,216,.25));border:1px solid rgba(79,172,254,.4);border-radius:20px;padding:20px;text-align:center;position:relative;overflow:hidden}
+.user-header .addr{font-family:monospace;font-size:13px;color:#4facfe;margin-bottom:10px}
+.user-level{display:inline-block;padding:6px 16px;border-radius:30px;font-size:15px;font-weight:bold;margin-top:5px}
+.level-w{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid #3b82f6;box-shadow:0 0 10px rgba(59,130,246,.3)}
+.level-c{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid #f59e0b;box-shadow:0 0 10px rgba(245,158,11,.3)}
+.level-none{background:rgba(107,114,128,.2);color:#9ca3af;border:1px solid #6b7280}
+.warning-text{color:#ef4444;font-size:12px;margin-top:10px;background:rgba(239,68,68,.1);padding:8px;border-radius:8px;border:1px solid rgba(239,68,68,.3)}
+
+/* 资产总览 */
+.total-box{background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.05));border:1px solid rgba(16,185,129,.3);border-radius:20px;padding:20px;text-align:center;margin-bottom:8px}
+.total-box .label{font-size:13px;color:#94a3b8;margin-bottom:8px}
+.total-box .val{font-size:32px;font-weight:800;color:#10b981;font-family:monospace;text-shadow:0 0 15px rgba(16,185,129,.4)}
+
+/* 分池明细 */
+.pool-item{margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed rgba(79,172,254,.2)}
+.pool-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.pool-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.pool-name{font-weight:bold;font-size:15px;display:flex;align-items:center;gap:6px}
+.pool-pending{color:#facc15;font-size:16px;font-weight:bold;font-family:monospace}
+.pool-detail{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:#94a3b8}
+.pool-detail span{color:#e2e8f0}
+
+button.act{background:linear-gradient(95deg,#10b981,#059669);border:none;padding:16px;border-radius:50px;font-weight:700;color:#fff;width:100%;margin-top:10px;cursor:pointer;font-size:16px;transition:.2s;box-shadow:0 4px 15px rgba(16,185,129,.3)}
+button.act:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-2px)}
+button.act:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;transform:none}
+.hidden{display:none !important}
+
+/* 全局池子展示 */
+.global-pools{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+.gp-card{background:rgba(0,0,0,.3);border-radius:12px;padding:12px 8px;text-align:center;border:1px solid rgba(255,255,255,.05)}
+.gp-name{font-size:11px;color:#94a3b8;margin-bottom:4px}
+.gp-val{font-size:18px;font-weight:bold;color:#f0f3ff;font-family:monospace;word-break:break-all}
+
+/* 提示工具 */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 20px;border-radius:30px;font-size:14px;z-index:9999;display:none;border:1px solid #4facfe;box-shadow:0 4px 12px rgba(0,0,0,.5);white-space:nowrap}
+.toast.show{display:block;animation:fadeInDown .3s ease}
+@keyframes fadeInDown{from{opacity:0;transform:translate(-50%,-20px)}to{opacity:1;transform:translate(-50%,0)}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <a href="index-6.html" class="back-btn" data-i18n="back_btn">← 返回生态</a>
+        <div class="title" data-i18n="page_title">运营中心分红</div>
+    </div>
+    <div class="top-actions">
+        <select id="lang-switch" class="lang-switch" onchange="I18n.setLang(this.value)">
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+        </select>
+        <div id="walletInfo" class="wallet-info"></div>
+        <button id="connectBtn" class="connect-btn" data-i18n="btn_connect">连接钱包</button>
+    </div>
+</div>
+
+<div class="content">
+    <!-- 用户信息 -->
+    <div class="user-header">
+        <div class="addr" id="userAddr" data-i18n="wallet_not_connected">未连接钱包</div>
+        <div id="userLevelBox">
+            <span class="user-level level-none" id="userLevelBadge" data-i18n="tier_0">尚未参与</span>
+        </div>
+        <div id="blockedWarning" class="warning-text hidden" data-i18n="msg_blocked">
+            ⚠️ 您的账户已被管理员限制分红领取
+        </div>
+    </div>
+
+    <!-- 总资产领取框 -->
+    <div class="card">
+        <h2 data-i18n="card_total_title">💰 我的待领取分红</h2>
+        <div class="total-box">
+            <div class="label" data-i18n="total_est_value">总计待领取</div>
+            <div class="val" id="totalPendingValue">0.0000</div>
+        </div>
+        <button class="act" id="claimAllBtn" onclick="claimAll()" disabled data-i18n="btn_claim">一键领取全部收益</button>
+        <div style="text-align:center;font-size:11px;color:#94a3b8;margin-top:8px;" data-i18n="claim_note">
+            注：领取后收益将直接发放至您的钱包，无需任何手续费。
+        </div>
+    </div>
+
+    <!-- 单池明细 -->
+    <div class="card">
+        <h2 data-i18n="card_detail_title">📊 收益明细 (RAYC-A)</h2>
+        
+        <!-- RAYC-A -->
+        <div class="pool-item">
+            <div class="pool-header">
+                <div class="pool-name" style="color:#10b981;" data-i18n="pool_rayca">🪙 RAYC-A 池</div>
+                <div class="pool-pending" id="pendingRaycA">0.0000 RAYC-A</div>
+            </div>
+            <div class="pool-detail">
+                <div><span data-i18n="label_claimed">累计已领:</span> <span id="claimedRaycA">0.0000</span></div>
+                <div><span data-i18n="label_subsidy">新增业绩补贴:</span> <span id="manualRaycA" style="color:#f59e0b;">0.0000</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全网池子概览 -->
+    <div class="card">
+        <h2 data-i18n="card_global_title">🌐 全网营销池余额</h2>
+        <div class="global-pools">
+            <div class="gp-card">
+                <div class="gp-name">RAYC-A</div>
+                <div class="gp-val" id="gpRaycA" style="color:#10b981;">-</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast">提示信息</div>
+
+<script>
+// ==================== 配置区 ====================
+// ⚠️ 这里填你最新部署的营销合约地址！
+const MARKETING_ADDR = "0xDE5d27325C353F84310763635468eD0b704239c8"; 
+
+// 适配你新部署的 V8 单池合约 ABI
+const ABI = [
+    "function getUserInfo(address user) view returns (uint8 tierId, uint256 pendingRaycA, uint256 claimedRaycA, uint256 manualRaycA, bool blocked)",
+    "function getPoolBalance() view returns (uint256)",
+    "function claim() external",
+    "function dividendBlocked(address user) view returns (bool)"
+];
+
+// ==================== 四国语言字典 ====================
+const i18nData = {
+    'zh-CN': {
+        'back_btn': '← 返回生态', 'page_title': '运营中心分红', 'btn_connect': '连接钱包',
+        'wallet_not_connected': '未连接钱包', 'msg_blocked': '⚠️ 您的账户已被管理员限制分红领取',
+        'tier_0': '尚未参与', 'tier_1': 'W1 工作室', 'tier_2': '运营中心',
+        'tier_3': 'C1 级别', 'tier_4': 'C2 级别', 'tier_5': 'C3 级别', 'tier_6': 'C4 级别', 'tier_7': 'C5 级别', 'tier_8': 'C6 级别', 'tier_9': 'C7 级别', 'tier_10': 'C8 级别', 'tier_11': 'C9 级别',
+        'card_total_title': '💰 我的待领取分红', 'total_est_value': '总计待领取 (RAYC-A)',
+        'btn_claim': '一键领取全部收益', 'claim_note': '注：领取后收益将直接发放至您的钱包，无需任何手续费。',
+        'card_detail_title': '📊 收益明细 (RAYC-A)',
+        'pool_rayca': '🪙 RAYC-A 池',
+        'label_claimed': '累计已领:', 'label_subsidy': '新增业绩补贴:',
+        'card_global_title': '🌐 全网营销池余额',
+        'btn_no_tier': '暂无级别，无法分红', 'btn_blocked': '已被限制领取', 'btn_no_pending': '暂无可领取收益',
+        'btn_loading': '加载中...', 'btn_claiming': '⏳ 交易确认中...',
+        'msg_install': '请安装 MetaMask 或 TP 钱包', 'msg_network': '请切换到 BSC 主网',
+        'msg_connect_fail': '连接失败: ', 'msg_load_fail': '数据读取失败: ',
+        'msg_tx_submitted': '交易已提交，等待打包...', 'msg_claim_success': '✅ 领取成功！',
+        'msg_claim_fail': '领取失败: '
+    },
+    'zh-TW': {
+        'back_btn': '← 返回生態', 'page_title': '營運中心分紅', 'btn_connect': '連接錢包',
+        'wallet_not_connected': '未連接錢包', 'msg_blocked': '⚠️ 您的賬戶已被管理員限制分紅領取',
+        'tier_0': '尚未參與', 'tier_1': 'W1 工作室', 'tier_2': '運營中心',
+        'tier_3': 'C1 級別', 'tier_4': 'C2 級別', 'tier_5': 'C3 級別', 'tier_6': 'C4 級別', 'tier_7': 'C5 級別', 'tier_8': 'C6 級別', 'tier_9': 'C7 級別', 'tier_10': 'C8 級別', 'tier_11': 'C9 級別',
+        'card_total_title': '💰 我的待領取分紅', 'total_est_value': '總計待領取 (RAYC-A)',
+        'btn_claim': '一鍵領取全部收益', 'claim_note': '注：領取後收益將直接發放至您的錢包，無需任何手續費。',
+        'card_detail_title': '📊 收益明細 (RAYC-A)',
+        'pool_rayca': '🪙 RAYC-A 池',
+        'label_claimed': '累計已領:', 'label_subsidy': '新增業績補貼:',
+        'card_global_title': '🌐 全網營銷池餘額',
+        'btn_no_tier': '暫無級別，無法分紅', 'btn_blocked': '已被限制領取', 'btn_no_pending': '暫無可領取收益',
+        'btn_loading': '加載中...', 'btn_claiming': '⏳ 交易確認中...',
+        'msg_install': '請安裝 MetaMask 或 TP 錢包', 'msg_network': '請切換到 BSC 主網',
+        'msg_connect_fail': '連接失敗: ', 'msg_load_fail': '數據讀取失敗: ',
+        'msg_tx_submitted': '交易已提交，等待打包...', 'msg_claim_success': '✅ 領取成功！',
+        'msg_claim_fail': '領取失敗: '
+    },
+    'en': {
+        'back_btn': '← Back to Eco', 'page_title': 'Marketing Dividend', 'btn_connect': 'Connect Wallet',
+        'wallet_not_connected': 'Wallet Not Connected', 'msg_blocked': '⚠️ Your account is restricted from claiming dividends.',
+        'tier_0': 'Not Participating', 'tier_1': 'W1 Workshop', 'tier_2': 'Operation Center',
+        'tier_3': 'C1 Level', 'tier_4': 'C2 Level', 'tier_5': 'C3 Level', 'tier_6': 'C4 Level', 'tier_7': 'C5 Level', 'tier_8': 'C6 Level', 'tier_9': 'C7 Level', 'tier_10': 'C8 Level', 'tier_11': 'C9 Level',
+        'card_total_title': '💰 My Pending Dividends', 'total_est_value': 'Total Pending (RAYC-A)',
+        'btn_claim': 'Claim All Rewards', 'claim_note': 'Note: Rewards will be sent directly to your wallet without any fees.',
+        'card_detail_title': '📊 Reward Details (RAYC-A)',
+        'pool_rayca': '🪙 RAYC-A Pool',
+        'label_claimed': 'Total Claimed:', 'label_subsidy': 'Perf. Subsidy:',
+        'card_global_title': '🌐 Global Marketing Pool',
+        'btn_no_tier': 'No Tier, No Dividend', 'btn_blocked': 'Claiming Restricted', 'btn_no_pending': 'No Pending Rewards',
+        'btn_loading': 'Loading...', 'btn_claiming': '⏳ Confirming Tx...',
+        'msg_install': 'Please install MetaMask or TP Wallet', 'msg_network': 'Please switch to BSC Mainnet',
+        'msg_connect_fail': 'Connection failed: ', 'msg_load_fail': 'Data load failed: ',
+        'msg_tx_submitted': 'Tx submitted, waiting for confirmation...', 'msg_claim_success': '✅ Claim Successful!',
+        'msg_claim_fail': 'Claim failed: '
+    },
+    'fr': {
+        'back_btn': '← Retour à l\'Éco', 'page_title': 'Dividendes Marketing', 'btn_connect': 'Connecter',
+        'wallet_not_connected': 'Portefeuille Non Connecté', 'msg_blocked': '⚠️ Votre compte est restreint pour réclamer des dividendes.',
+        'tier_0': 'Non Participant', 'tier_1': 'W1 Atelier', 'tier_2': 'Centre d\'Opération',
+        'tier_3': 'Niveau C1', 'tier_4': 'Niveau C2', 'tier_5': 'Niveau C3', 'tier_6': 'Niveau C4', 'tier_7': 'Niveau C5', 'tier_8': 'Niveau C6', 'tier_9': 'Niveau C7', 'tier_10': 'Niveau C8', 'tier_11': 'Niveau C9',
+        'card_total_title': '💰 Mes Dividendes en Attente', 'total_est_value': 'Total en Attente (RAYC-A)',
+        'btn_claim': 'Réclamer Toutes les Récompenses', 'claim_note': 'Note : Les récompenses seront envoyées directement dans votre portefeuille sans frais.',
+        'card_detail_title': '📊 Détails des Récompenses (RAYC-A)',
+        'pool_rayca': '🪙 Pool RAYC-A',
+        'label_claimed': 'Total Réclamé :', 'label_subsidy': 'Subvention Perf. :',
+        'card_global_title': '🌐 Pool Marketing Global',
+        'btn_no_tier': 'Aucun Niveau, Aucun Div.', 'btn_blocked': 'Réclamation Restreinte', 'btn_no_pending': 'Aucune Récompense',
+        'btn_loading': 'Chargement...', 'btn_claiming': '⏳ Confirmation Tx...',
+        'msg_install': 'Veuillez installer MetaMask ou TP Wallet', 'msg_network': 'Veuillez passer au BSC Mainnet',
+        'msg_connect_fail': 'Échec de connexion : ', 'msg_load_fail': 'Échec du chargement : ',
+        'msg_tx_submitted': 'Tx soumise, en attente...', 'msg_claim_success': '✅ Réclamation Réussie !',
+        'msg_claim_fail': 'Échec de la réclamation : '
+    }
+};
+
+// ==================== I18n 国际化工具 ====================
+const I18n = {
+    currentLang: localStorage.getItem('mkt_lang') || 'zh-CN',
+    init() {
+        document.getElementById('lang-switch').value = this.currentLang;
+        this.applyLang(this.currentLang);
+    },
+    setLang(lang) {
+        this.currentLang = lang;
+        localStorage.setItem('mkt_lang', lang);
+        this.applyLang(lang);
+        if (typeof loadData === 'function') loadData();
+    },
+    t(key) {
+        return i18nData[this.currentLang][key] || i18nData['zh-CN'][key] || key;
+    },
+    applyLang(lang) {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            el.innerText = this.t(key);
+        });
+        document.title = this.t('page_title');
+    }
+};
+
+// ==================== Web3 逻辑 ====================
+let provider, signer, userAddress;
+let M; 
+let currentState = { tierId: 0, blocked: false, hasPending: false };
+
+const toastEl = document.getElementById('toast');
+function showToast(msg, isErr = false) {
+    toastEl.innerText = msg;
+    toastEl.style.borderColor = isErr ? '#ef4444' : '#4facfe';
+    toastEl.style.color = isErr ? '#ff9aa5' : '#fff';
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 3000);
+}
+
+function fmt(v) { 
+    try { return parseFloat(ethers.utils.formatEther(v)).toFixed(4); } 
+    catch(e){ return "0.0000"; } 
+}
+
+document.getElementById('connectBtn').onclick = async () => {
+    if (!window.ethereum) return showToast(I18n.t('msg_install'), true);
+    try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        
+        const net = await provider.getNetwork();
+        if(net.chainId !== 56) {
+            showToast(I18n.t('msg_network'), true);
+            return;
+        }
+
+        document.getElementById('walletInfo').innerText = userAddress.slice(0,6) + '...' + userAddress.slice(-4);
+        document.getElementById('walletInfo').style.display = 'block';
+        document.getElementById('connectBtn').classList.add('hidden');
+        document.getElementById('userAddr').innerText = userAddress;
+
+        M = new ethers.Contract(MARKETING_ADDR, ABI, signer);
+        
+        await loadData();
+    } catch(e) {
+        showToast(I18n.t('msg_connect_fail') + e.message, true);
+    }
+};
+
+async function loadData() {
+    if(!M || !userAddress) return;
+    try {
+        const btn = document.getElementById('claimAllBtn');
+        btn.disabled = true;
+        btn.innerText = I18n.t('btn_loading');
+
+        // 适配新的单池 V8 合约返回值
+        const info = await M.getUserInfo(userAddress);
+        currentState.tierId = info[0];
+        const pendingRaycA = info[1];
+        const claimedRaycA = info[2];
+        const manualRaycA = info[3];
+        currentState.blocked = info[4];
+
+        // 级别名称渲染
+        const levelBadge = document.getElementById('userLevelBadge');
+        levelBadge.innerText = I18n.t('tier_' + currentState.tierId);
+        
+        if (currentState.tierId === 0) {
+            levelBadge.className = "user-level level-none";
+        } else if (currentState.tierId <= 2) {
+            levelBadge.className = "user-level level-w";
+        } else {
+            levelBadge.className = "user-level level-c";
+        }
+
+        // 黑名单警告
+        const blockedWarning = document.getElementById('blockedWarning');
+        if (currentState.blocked) blockedWarning.classList.remove('hidden');
+        else blockedWarning.classList.add('hidden');
+
+        // 具体数字渲染
+        document.getElementById('pendingRaycA').innerText = fmt(pendingRaycA) + ' RAYC-A';
+        document.getElementById('claimedRaycA').innerText = fmt(claimedRaycA);
+        document.getElementById('manualRaycA').innerText = fmt(manualRaycA);
+
+        // 总计待领取 (直接显示 RAYC-A 数量)
+        document.getElementById('totalPendingValue').innerText = fmt(pendingRaycA);
+
+        // 全网余额
+        const balanceRaycA = await M.getPoolBalance();
+        document.getElementById('gpRaycA').innerText = fmt(balanceRaycA);
+
+        // 按钮状态
+        currentState.hasPending = pendingRaycA.gt(0);
+        
+        if (currentState.hasPending && !currentState.blocked) {
+            btn.disabled = false;
+            btn.innerText = I18n.t('btn_claim');
+        } else {
+            btn.disabled = true;
+            if (currentState.tierId === 0) btn.innerText = I18n.t('btn_no_tier');
+            else if (currentState.blocked) btn.innerText = I18n.t('btn_blocked');
+            else btn.innerText = I18n.t('btn_no_pending');
+        }
+
+    } catch(e) {
+        console.error(e);
+        showToast(I18n.t('msg_load_fail') + (e.reason || e.message), true);
+        document.getElementById('claimAllBtn').innerText = I18n.t('btn_no_pending');
+    }
+}
+
+async function claimAll() {
+    if(!M) return;
+    const btn = document.getElementById('claimAllBtn');
+    try {
+        btn.disabled = true;
+        btn.innerText = I18n.t('btn_claiming');
+        
+        const tx = await M.claim();
+        showToast(I18n.t('msg_tx_submitted'));
+        
+        await tx.wait();
+        showToast(I18n.t('msg_claim_success'));
+        
+        await loadData();
+    } catch(e) {
+        console.error(e);
+        showToast(I18n.t('msg_claim_fail') + (e.reason || e.message), true);
+        await loadData();
+    }
+}
+
+// ==================== 初始化 ====================
+window.addEventListener('DOMContentLoaded', () => {
+    I18n.init();
+    if(window.ethereum){
+        window.ethereum.request({method:'eth_accounts'}).then(accounts => { 
+            if(accounts.length > 0) document.getElementById('connectBtn').click(); 
+        });
+    }
+});
+
+if(window.ethereum) {
+    window.ethereum.on('accountsChanged', () => location.reload());
+    window.ethereum.on('chainChanged', () => location.reload());
+}
+</script>
+</body>
+</html>

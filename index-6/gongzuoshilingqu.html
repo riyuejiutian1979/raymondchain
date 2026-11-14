@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作室新增业绩奖励 · 领取中心</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+:root {
+    --bg: #0a0a0f;
+    --card-bg: rgba(20, 25, 40, 0.65);
+    --primary: #facc15; /* 金色 */
+    --primary-hover: #eab308;
+    --secondary: #ef4444; /* 喜庆红 */
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: rgba(250, 204, 21, 0.2);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: 
+        radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.15) 0%, transparent 50%),
+        linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+        url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><path d="M0 40V0h40v40H0zm39-1V1H1v38h38z" fill="rgba(250,204,21,0.05)"/></svg>');
+    background-attachment: fixed;
+}
+
+/* 顶部公告栏 */
+.announcement-bar {
+    background: linear-gradient(90deg, #b91c1c, #ef4444);
+    color: #fff;
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3);
+    display: flex;
+    align-items: center;
+}
+.announcement-bar .icon {
+    padding: 0 15px;
+    background: rgba(0,0,0,0.2);
+    position: absolute;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    z-index: 2;
+}
+.marquee-container {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    padding-left: 50px;
+}
+.marquee-content {
+    display: inline-block;
+    animation: marquee 25s linear infinite;
+    padding-left: 100%;
+}
+.marquee-content span { margin-right: 40px; }
+@keyframes marquee {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(-100%, 0); }
+}
+
+/* 头部导航 */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    flex-wrap: nowrap;
+    gap: 10px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-back {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.btn-back:hover {
+    background: rgba(250, 204, 21, 0.2);
+    color: var(--primary);
+}
+
+.logo {
+    font-size: 20px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.logo-icon {
+    width: 28px;
+    height: 28px;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="%23facc15" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>') no-repeat center;
+    background-size: contain;
+}
+
+.user-tag {
+    background: rgba(250, 204, 21, 0.15);
+    border: 1px solid var(--primary);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--primary);
+    display: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* 语言切换器 */
+.lang-select {
+    background: rgba(20, 25, 40, 0.8);
+    border: 1px solid var(--border);
+    color: var(--primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23facc15" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    padding-right: 24px;
+}
+.lang-select option {
+    background: #141928;
+    color: #fff;
+}
+
+.btn-connect {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.1);
+    white-space: nowrap;
+}
+.btn-connect:hover {
+    background: var(--primary);
+    color: #000;
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.4);
+}
+
+/* 主体内容 */
+.main-container {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+/* 概览卡片 */
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    background: var(--primary);
+}
+.stat-card.red::before { background: var(--secondary); }
+.stat-label {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+}
+.stat-value.highlight { color: var(--primary); }
+
+/* 资产列表样式 */
+.asset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+.asset-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+.asset-item .symbol {
+    color: var(--text-muted);
+}
+.asset-item .balance {
+    font-weight: 700;
+    color: var(--primary);
+    font-family: monospace;
+    font-size: 15px;
+}
+
+/* 奖励列表 */
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+}
+
+.rewards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.reward-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s, border-color 0.2s;
+}
+.reward-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(250, 204, 21, 0.3);
+}
+.reward-card.claimed {
+    opacity: 0.6;
+    background: rgba(20, 25, 40, 0.3);
+}
+
+.r-left { display: flex; flex-direction: column; gap: 6px; }
+.r-round { font-size: 16px; font-weight: 700; color: var(--primary); }
+.r-amount { font-size: 24px; font-weight: 800; color: #fff; }
+.r-amount span { font-size: 14px; color: var(--text-muted); font-weight: normal; }
+.r-tax { font-size: 12px; color: #f87171; display: flex; align-items: center; gap: 4px; }
+
+.r-right { display: flex; align-items: center; gap: 12px; }
+
+.btn-action {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.btn-claim {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+.btn-claim:hover { box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5); transform: scale(1.02); }
+
+.btn-disabled {
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 1px dashed var(--border);
+    line-height: 1.8;
+}
+.empty-state h3 { color: var(--primary); margin-bottom: 10px; font-size: 18px; }
+
+/* 全局提示 */
+#toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    max-width: 90vw;
+    word-wrap: break-word;
+}
+#toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* 加载动画 */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 600px) {
+    .reward-card { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .r-right { width: 100%; justify-content: flex-end; }
+    .btn-action { flex: 1; text-align: center; }
+    .logo { font-size: 18px; }
+    .logo-icon { width: 24px; height: 24px; }
+    header { padding: 15px; flex-direction: column; align-items: stretch; }
+    .header-left { justify-content: center; margin-bottom: 10px; }
+    .header-right { justify-content: space-between; }
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部公告栏 -->
+<div class="announcement-bar">
+    <div class="icon">📢</div>
+    <div class="marquee-container">
+        <div class="marquee-content" id="marqueeText"></div>
+    </div>
+</div>
+
+<!-- 头部导航 -->
+<header>
+    <div class="header-left">
+        <a href="javascript:void(0)" class="btn-back" id="backBtn">←</a>
+        <div class="logo">
+            <div class="logo-icon"></div>
+            RAYMONDREAM
+        </div>
+        <div class="user-tag" id="workshopTag"></div>
+    </div>
+    
+    <div class="header-right">
+        <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
+            <option value="zh-CN">简体</option>
+            <option value="zh-TW">繁體</option>
+            <option value="en">EN</option>
+            <option value="fr">FR</option>
+        </select>
+        <button class="btn-connect" id="connectBtn" data-i18n="connect_wallet">连接钱包</button>
+    </div>
+</header>
+
+<!-- 主体内容 -->
+<div class="main-container">
+    
+    <!-- 概览数据 -->
+    <div class="overview-grid">
+        <div class="stat-card">
+            <div class="stat-label" data-i18n="current_round">当前发放轮次</div>
+            <div class="stat-value highlight" id="currentRoundDisplay">-</div>
+        </div>
+        <div class="stat-card red">
+            <div class="stat-label" data-i18n="total_claimable">我的待领总额 (USDT)</div>
+            <div class="stat-value" id="myTotalClaimable">0.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label" data-i18n="total_claimed">我的已领总额 (USDT)</div>
+            <div class="stat-value" id="myTotalClaimed">0.00</div>
+        </div>
+        <!-- 同步钱包资产 -->
+        <div class="stat-card" style="border-color: rgba(59, 130, 246, 0.4);">
+            <div class="stat-label" style="color: #60a5fa; font-weight: bold; margin-bottom: 10px;">💎 我的钱包资产</div>
+            <div class="asset-list">
+                <div class="asset-item">
+                    <span class="symbol">RAYT</span>
+                    <span class="balance" id="walletRayt">-</span>
+                </div>
+                <div class="asset-item">
+                    <span class="symbol">USDT</span>
+                    <span class="balance" id="walletUsdt">-</span>
+                </div>
+                <div class="asset-item">
+                    <span class="symbol">BNB</span>
+                    <span class="balance" id="walletBnb">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 奖励列表 -->
+    <div class="section-title">
+        <span data-i18n="claim_records">奖励领取记录</span>
+        <span id="loadingText" style="font-size:14px; color:var(--primary); font-weight:normal; margin-left:10px;"></span>
+    </div>
+    
+    <div class="rewards-list" id="rewardsList">
+        <div class="empty-state" data-i18n="connect_prompt">
+            请先连接钱包，系统将自动扫描您的新增业绩奖励。
+        </div>
+    </div>
+
+</div>
+
+<!-- 提示框 -->
+<div id="toast">提示信息</div>
+
+<script>
+/* =========================================================
+ *  1. 多语言字典 (I18N)
+ * =======================================================*/
+const I18N = {
+    "zh-CN": {
+        connect_wallet: "连接钱包",
+        current_round: "当前发放轮次",
+        total_claimable: "我的待领总额 (USDT)",
+        total_claimed: "我的已领总额 (USDT)",
+        claim_records: "奖励领取记录",
+        connect_prompt: "请先连接钱包，系统将自动扫描您的新增业绩奖励。",
+        w1_studio: "W1 工作室",
+        w2_center: "W2 运营中心",
+        round_prefix: "第 {r} 轮",
+        round_reward: "第 {r} 期新增业绩奖励",
+        tax_warning: "⚠️ 需扣除 {t} RAYT 作为手续费",
+        btn_claim: "领取奖励",
+        btn_claimed: "已领取",
+        no_records_w0: "当前轮次为 0，管理員还未进行过业绩分发，敬请期待！",
+        no_records_w1: "您是工作室/运营中心，但在最近 {l} 轮内暂无您的业绩奖励记录。<br>（可能是这期间伞下无新增业绩，或管理员还未发放）",
+        identity_error_title: "⚠️ 身份不匹配",
+        identity_error_desc: "您当前连接的钱包<b>不是 W1 工作室或 W2 运营中心</b>。<br>此页面仅用于领取专属“新增业绩奖”。<br>如果您是普通托管用户，请前往托管的 DApp 页面领取收益。",
+        toast_install_metamask: "请安装 MetaMask 钱包！",
+        toast_switch_bsc: "请手动切换到 BSC (币安智能链) 网络",
+        toast_connected: "钱包连接成功！",
+        toast_connect_fail: "连接钱包失败：",
+        toast_unknown_error: "未知错误",
+        toast_scanning: "扫描中...",
+        toast_data_fail: "数据加载失败，请刷新重试",
+        toast_approving: "正在请求授权 RAYT 代币...",
+        toast_approve_success: "授权成功，正在领取...",
+        toast_claim_success: "第 {r} 期奖励领取成功！",
+        toast_claim_fail: "领取失败",
+        toast_user_cancel: "您取消了交易",
+        toast_no_bnb: "钱包 BNB 余额不足",
+        toast_no_rayt: "您的 RAYT 余额不足，无法扣除手续费",
+        btn_processing: "处理中...",
+        btn_authorizing: "授权中...",
+        btn_claiming: "领取中...",
+        back_url_error: "管理员未配置返回链接",
+        announcements: [
+            "🎉 恭喜运营中心突破 100 家！新增业绩奖励现已开放领取，请及时授权并领取 USDT！暂定每月的7/15/22/29号合约自动执行分发！从11月7日开始24小时执行一次分发！！！",
+            "📢 领取前请确保钱包内有足够的 RAYT 代币用于扣除 10% 手续费。",
+            "⚡ 官方提示：本奖励为 W1 工作室 / W2 运营中心 专属新增业绩奖励，普通托管用户请前返回对应版块领取收益。"
+        ]
+    },
+    "zh-TW": {
+        connect_wallet: "連接錢包",
+        current_round: "當前發放輪次",
+        total_claimable: "我的待領總額 (USDT)",
+        total_claimed: "我的已領總額 (USDT)",
+        claim_records: "獎勵領取記錄",
+        connect_prompt: "請先連接錢包，系統將自動掃描您的新增業績獎勵。",
+        w1_studio: "W1 工作室",
+        w2_center: "W2 運營中心",
+        round_prefix: "第 {r} 輪",
+        round_reward: "第 {r} 期新增業績獎勵",
+        tax_warning: "⚠️ 需扣除 {t} RAYT 作為手續費",
+        btn_claim: "領取獎勵",
+        btn_claimed: "已領取",
+        no_records_w0: "當前輪次為 0，管理員還未進行過業績分發，敬請期待！",
+        no_records_w1: "您是工作室/運營中心，但在最近 {l} 輪內暫無您的業績獎勵記錄。<br>（可能是這期間傘下無新增業績，或管理員還未發放）",
+        identity_error_title: "⚠️ 身份不匹配",
+        identity_error_desc: "您當前連接的錢包<b>不是 W1 工作室或 W2 運營中心</b>。<br>此頁面僅用於領取專屬“新增業績獎”。<br>如果您是普通託管用戶，請前往託管的 DApp 頁面領取收益。",
+        toast_install_metamask: "請安裝 MetaMask 錢包！",
+        toast_switch_bsc: "請手動切換到 BSC (幣安智能鏈) 網絡",
+        toast_connected: "錢包連接成功！",
+        toast_connect_fail: "連接錢包失敗：",
+        toast_unknown_error: "未知錯誤",
+        toast_scanning: "掃描中...",
+        toast_data_fail: "數據加載失敗，請刷新重試",
+        toast_approving: "正在請求授權 RAYT 代幣...",
+        toast_approve_success: "授權成功，正在領取...",
+        toast_claim_success: "第 {r} 期獎勵領取成功！",
+        toast_claim_fail: "領取失敗",
+        toast_user_cancel: "您取消了交易",
+        toast_no_bnb: "錢包 BNB 餘額不足",
+        toast_no_rayt: "您的 RAYT 餘額不足，無法扣除手續費",
+        btn_processing: "處理中...",
+        btn_authorizing: "授權中...",
+        btn_claiming: "領取中...",
+        back_url_error: "管理員未配置返回鏈接",
+        announcements: [
+            "🎉 恭喜運營中心突破 100 家！新增業績獎勵現已開放領取，請及時授權並領取 USDT！每月的7/15/22/29號合約自動執行分發！從11月7日開始24小時執行一次分發！ ！ ！",
+            "📢 領取前請確保錢包內有足夠的 RAYT 代幣用於扣除 10% 手續費。",
+            "⚡ 官方提示：本獎勵為 W1 工作室 / W2 運營中心 專屬新增業績獎勵，普通託管用戶請前往個人中心領取收益。"
+        ]
+    },
+    "en": {
+        connect_wallet: "Connect Wallet",
+        current_round: "Current Round",
+        total_claimable: "Total Claimable (USDT)",
+        total_claimed: "Total Claimed (USDT)",
+        claim_records: "Claim Records",
+        connect_prompt: "Please connect your wallet. The system will automatically scan for your rewards.",
+        w1_studio: "W1 Studio",
+        w2_center: "W2 Operation Center",
+        round_prefix: "Round {r}",
+        round_reward: "Round {r} Performance Reward",
+        tax_warning: "⚠️ Requires {t} RAYT for tax",
+        btn_claim: "Claim Reward",
+        btn_claimed: "Claimed",
+        no_records_w0: "Current round is 0. Admin hasn't distributed any rewards yet.",
+        no_records_w1: "You are a Studio/Center, but no reward records were found in the last {l} rounds.<br>(No new performance or not distributed yet)",
+        identity_error_title: "⚠️ Identity Mismatch",
+        identity_error_desc: "Your connected wallet is <b>NOT a W1 Studio or W2 Operation Center</b>.<br>This page is only for claiming performance rewards.<br>If you are a regular custody user, please go to the DApp to claim your yields.",
+        toast_install_metamask: "Please install MetaMask!",
+        toast_switch_bsc: "Please switch to BSC (Binance Smart Chain) manually",
+        toast_connected: "Wallet Connected!",
+        toast_connect_fail: "Connection failed: ",
+        toast_unknown_error: "Unknown error",
+        toast_scanning: "Scanning...",
+        toast_data_fail: "Failed to load data, please refresh.",
+        toast_approving: "Requesting RAYT approval...",
+        toast_approve_success: "Approved, claiming...",
+        toast_claim_success: "Round {r} claimed successfully!",
+        toast_claim_fail: "Claim failed",
+        toast_user_cancel: "Transaction cancelled by user",
+        toast_no_bnb: "Insufficient BNB for gas",
+        toast_no_rayt: "Insufficient RAYT balance for tax",
+        btn_processing: "Processing...",
+        btn_authorizing: "Authorizing...",
+        btn_claiming: "Claiming...",
+        back_url_error: "Back URL not configured",
+        announcements: [
+            "🎉 Congratulations! Over 100 Operation Centers established. Performance rewards are now available for claim!Distribution will be carried out 24 hours a day starting from November 7th! ! !",
+            "📢 Please ensure you have enough RAYT tokens in your wallet for the 10% tax，No handling fee will be deducted after November 7.",
+            "⚡ Official Notice: This reward is exclusively for W1 Studios and W2 Operation Centers. Regular custody users please claim yields in the Personal Center."
+        ]
+    },
+    "fr": {
+        connect_wallet: "Connecter le portefeuille",
+        current_round: "Cycle Actuel",
+        total_claimable: "Total à réclamer (USDT)",
+        total_claimed: "Total réclamé (USDT)",
+        claim_records: "Historique des réclamations",
+        connect_prompt: "Veuillez connecter votre portefeuille. Le système scannera automatiquement vos récompenses.",
+        w1_studio: "Studio W1",
+        w2_center: "Centre d'Opérations W2",
+        round_prefix: "Cycle {r}",
+        round_reward: "Récompense de Performance - Cycle {r}",
+        tax_warning: "⚠️ Nécessite {t} RAYT de frais",
+        btn_claim: "Réclamer",
+        btn_claimed: "Réclamé",
+        no_records_w0: "Le cycle actuel est 0. L'administrateur n'a pas encore distribué de récompenses.",
+        no_records_w1: "Vous êtes un Studio/Centre, mais aucun enregistrement trouvé dans les {l} derniers cycles.<br>(Pas de nouvelle performance ou pas encore distribué)",
+        identity_error_title: "⚠️ Identité Incorrecte",
+        identity_error_desc: "Votre portefeuille connecté <b>N'EST PAS un Studio W1 ou un Centre d'Opérations W2</b>.<br>Cette page est réservée aux récompenses de performance.<br>Si vous êtes un utilisateur standard, veuillez réclamer vos gains sur le DApp.",
+        toast_install_metamask: "Veuillez installer MetaMask !",
+        toast_switch_bsc: "Veuillez passer manuellement sur BSC (Binance Smart Chain)",
+        toast_connected: "Portefeuille connecté !",
+        toast_connect_fail: "Échec de la connexion : ",
+        toast_unknown_error: "Erreur inconnue",
+        toast_scanning: "Scan en cours...",
+        toast_data_fail: "Échec du chargement, veuillez rafraîchir.",
+        toast_approving: "Demande d'autorisation RAYT...",
+        toast_approve_success: "Autorisé, réclamation en cours...",
+        toast_claim_success: "Cycle {r} réclamé avec succès !",
+        toast_claim_fail: "Échec de la réclamation",
+        toast_user_cancel: "Transaction annulée",
+        toast_no_bnb: "BNB insuffisant pour le gaz",
+        toast_no_rayt: "Solde RAYT insuffisant pour les frais",
+        btn_processing: "En cours...",
+        btn_authorizing: "Autorisation...",
+        btn_claiming: "Réclamation...",
+        back_url_error: "URL de retour non configurée",
+        announcements: [
+            "🎉 Félicitations ! Plus de 100 Centres d'Opérations établis. Les récompenses sont disponibles !La distribution s'effectuera 24h/24 à partir du 7 novembre ! ! !",
+            "📢 Assurez-vous d'avoir assez de jetons RAYT pour les 10% de frais，Aucun frais de dossier ne sera déduit après le 7 novembre.",
+            "⚡ Avis Officiel : Cette récompense est réservée aux Studios W1 et Centres d'Opérations W2. Les utilisateurs standard doivent réclamer sur le Centre Personnel."
+        ]
+    }
+};
+
+/* =========================================================
+ *  2. 配置区域
+ * =======================================================*/
+const CONFIG = {
+    distributorAddr: "0x11c363C2c9bc3FB750e20619794DF7061B3A3AB9",
+    workshopAddr: "0xff625a83ed6a527061020954E00F8c52Ee9BC1BD",
+    usdtAddr: "0x55d398326f99059fF775485246999027B3197955",
+    raytAddr: "0x88201e877C4FC38D2C1c3AF20A32234629f02405",
+    
+    // 返回按钮链接
+    backUrl: "https://www.rayc.raymondream.com/raymondchain/rayc/index-6.html", 
+    
+    // 扫描历史轮次上限
+    scanRoundsLimit: 50
+};
+
+/* =========================================================
+ *  3. ABI 与 变量初始化
+ * =======================================================*/
+const DIST_ABI = [
+    "function currentRound() view returns (uint256)",
+    "function rewards(uint256,address) view returns (uint256)",
+    "function claimed(uint256,address) view returns (bool)",
+    "function getClaimTax(uint256,address) view returns (uint256)",
+    "function claim(uint256)"
+];
+
+const WORKSHOP_ABI = [
+    "function getWorkshopLevel(address user) view returns (uint8)"
+];
+
+const ERC20_ABI = [
+    "function allowance(address,address) view returns (uint256)",
+    "function approve(address,uint256) returns (bool)",
+    "function balanceOf(address) view returns (uint256)"
+];
+
+let provider;
+let signer;
+let userAddress = null;
+let distContract;
+let workshopContract;
+let raytContract;
+let usdtContract;
+let readOnlyDistContract;
+let currentLang = "zh-CN";
+
+const RAYT_DEC = 18;
+const USDT_DEC = 18;
+
+/* =========================================================
+ *  4. UI 辅助 & 多语言处理
+ * =======================================================*/
+const $ = id => document.getElementById(id);
+
+// 获取翻译文本
+function t(key, params = {}) {
+    let text = I18N[currentLang][key] || key;
+    for (let k in params) {
+        text = text.replace(`{${k}}`, params[k]);
+    }
+    return text;
+}
+
+// 应用多语言到 DOM
+function applyLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.innerHTML = t(key);
+    });
+
+    const marqueeText = $('marqueeText');
+    let html = '';
+    I18N[currentLang].announcements.forEach(text => {
+        html += `<span>${text}</span>`;
+    });
+    marqueeText.innerHTML = html;
+
+    if (userAddress) {
+        updateDynamicTexts();
+    } else {
+        $('connectBtn').innerText = t('connect_wallet');
+    }
+}
+
+// 切换语言
+function changeLanguage(lang) {
+    if (!I18N[lang]) return;
+    currentLang = lang;
+    localStorage.setItem('ray_lang', lang);
+    document.documentElement.lang = lang;
+    $('langSelect').value = lang;
+    
+    applyLanguage();
+}
+
+// 页面加载时读取语言
+const savedLang = localStorage.getItem('ray_lang') || 'zh-CN';
+if (I18N[savedLang]) {
+    currentLang = savedLang;
+    document.documentElement.lang = savedLang;
+    $('langSelect').value = savedLang;
+}
+
+function showToast(msg, isError = false) {
+    const toastEl = $('toast');
+    toastEl.innerText = msg;
+    toastEl.style.color = isError ? '#ef4444' : '#facc15';
+    toastEl.style.borderColor = isError ? '#ef4444' : '#facc15';
+    toastEl.classList.add('show');
+    
+    const duration = isError ? 6000 : 3500;
+    clearTimeout(window.toastTimer);
+    window.toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
+}
+
+function formatNumber(num, decimals = 2) {
+    return Number(num).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+
+function shortAddr(addr) {
+    return addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : '';
+}
+
+function updateDynamicTexts() {
+    if (!userAddress) return;
+    
+    $('connectBtn').innerText = shortAddr(userAddress);
+    
+    document.querySelectorAll('.btn-claim').forEach(btn => {
+        if (!btn.disabled && !btn.innerHTML.includes('spinner')) {
+            btn.innerText = t('btn_claim');
+        }
+    });
+    document.querySelectorAll('.btn-disabled').forEach(btn => {
+        btn.innerText = t('btn_claimed');
+    });
+
+    const tag = $('workshopTag');
+    if (tag.style.display !== 'none') {
+        const wlvl = tag.getAttribute('data-level');
+        if (wlvl == '1') tag.innerText = t('w1_studio');
+        if (wlvl == '2') tag.innerText = t('w2_center');
+    }
+}
+
+/* =========================================================
+ *  ⭐ 获取并渲染钱包资产余额
+ * =======================================================*/
+async function updateWalletBalances() {
+    if (!userAddress || !provider) return;
+    
+    try {
+        const bnbBalBN = await provider.getBalance(userAddress);
+        const bnbBal = ethers.utils.formatEther(bnbBalBN);
+        $('walletBnb').innerText = formatNumber(bnbBal, 4);
+
+        const raytBalBN = await raytContract.balanceOf(userAddress);
+        const raytBal = ethers.utils.formatUnits(raytBalBN, RAYT_DEC);
+        $('walletRayt').innerText = formatNumber(raytBal, 2);
+
+        const usdtBalBN = await usdtContract.balanceOf(userAddress);
+        const usdtBal = ethers.utils.formatUnits(usdtBalBN, USDT_DEC);
+        $('walletUsdt').innerText = formatNumber(usdtBal, 2);
+
+    } catch (e) {
+        console.warn("获取资产余额失败", e);
+        $('walletBnb').innerText = "--";
+        $('walletRayt').innerText = "--";
+        $('walletUsdt').innerText = "--";
+    }
+}
+
+/* =========================================================
+ *  5. 连接钱包逻辑 & 返回按钮
+ * =======================================================*/
+$('backBtn').onclick = () => {
+    if (CONFIG.backUrl && CONFIG.backUrl !== "") {
+        window.location.href = CONFIG.backUrl;
+    } else {
+        showToast(t('back_url_error'), true);
+    }
+};
+
+$('connectBtn').onclick = async () => {
+    if (!window.ethereum) {
+        showToast(t('toast_install_metamask'), true);
+        return;
+    }
+
+    try {
+        $('connectBtn').innerHTML = `<span class="spinner"></span>`;
+        
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0x38') {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x38' }],
+                });
+            } catch (switchError) {
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: '0x38',
+                                chainName: 'BNB Smart Chain Mainnet',
+                                nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                                rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                                blockExplorerUrls: ['https://bscscan.com/']
+                            }],
+                        });
+                    } catch (addError) {
+                        showToast(t('toast_switch_bsc'), true);
+                        $('connectBtn').innerText = t('connect_wallet');
+                        return;
+                    }
+                } else {
+                    showToast(t('toast_switch_bsc'), true);
+                    $('connectBtn').innerText = t('connect_wallet');
+                    return;
+                }
+            }
+        }
+
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        
+        distContract = new ethers.Contract(CONFIG.distributorAddr, DIST_ABI, signer);
+        workshopContract = new ethers.Contract(CONFIG.workshopAddr, WORKSHOP_ABI, provider);
+        
+        // 确保 raytContract 绑定 signer，读取和写入都能用
+        raytContract = new ethers.Contract(CONFIG.raytAddr, ERC20_ABI, signer);
+        
+        // usdtContract 绑定 provider，专门用于查余额
+        usdtContract = new ethers.Contract(CONFIG.usdtAddr, ERC20_ABI, provider);
+        
+        readOnlyDistContract = new ethers.Contract(CONFIG.distributorAddr, DIST_ABI, provider);
+
+        $('connectBtn').innerText = shortAddr(userAddress);
+        $('connectBtn').style.background = 'var(--primary)';
+        $('connectBtn').style.color = '#000';
+        
+        showToast(t('toast_connected'));
+        
+        await updateWalletBalances();
+        await loadDashboardData();
+
+        window.ethereum.on('accountsChanged', (accs) => {
+            if (accs.length === 0) location.reload();
+            else {
+                userAddress = accs[0];
+                $('connectBtn').innerText = shortAddr(userAddress);
+                updateWalletBalances();
+                loadDashboardData();
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        showToast(t('toast_connect_fail') + (error.message || t('toast_unknown_error')), true);
+        $('connectBtn').innerText = t('connect_wallet');
+    }
+};
+
+/* =========================================================
+ *  6. 数据加载与身份校验
+ * =======================================================*/
+async function loadDashboardData() {
+    if (!userAddress) return;
+    
+    $('loadingText').innerHTML = `<span class="spinner"></span> ${t('toast_scanning')}`;
+    $('rewardsList').innerHTML = '';
+    $('workshopTag').style.display = 'none';
+
+    try {
+        const wLevel = await workshopContract.getWorkshopLevel(userAddress);
+        
+        if (wLevel === 0) {
+            $('loadingText').innerText = '';
+            $('myTotalClaimable').innerText = '0.00';
+            $('myTotalClaimed').innerText = '0.00';
+            
+            const curRound = await readOnlyDistContract.currentRound();
+            $('currentRoundDisplay').innerText = t('round_prefix', {r: curRound});
+
+            $('rewardsList').innerHTML = `
+                <div class="empty-state">
+                    <h3>${t('identity_error_title')}</h3>
+                    ${t('identity_error_desc')}
+                </div>
+            `;
+            return;
+        }
+
+        const tag = $('workshopTag');
+        tag.style.display = 'inline-block';
+        tag.setAttribute('data-level', wLevel);
+        tag.innerText = wLevel === 1 ? t('w1_studio') : t('w2_center');
+        tag.style.background = wLevel === 1 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(139, 92, 246, 0.2)';
+        tag.style.color = wLevel === 1 ? '#60a5fa' : '#a78bfa';
+        tag.style.borderColor = wLevel === 1 ? '#60a5fa' : '#a78bfa';
+
+        const currentRoundBN = await readOnlyDistContract.currentRound();
+        const currentRound = currentRoundBN.toNumber();
+        $('currentRoundDisplay').innerText = t('round_prefix', {r: currentRound});
+
+        if (currentRound === 0) {
+            $('loadingText').innerText = '';
+            $('rewardsList').innerHTML = `<div class="empty-state">${t('no_records_w0')}</div>`;
+            return;
+        }
+
+        let startRound = currentRound - CONFIG.scanRoundsLimit + 1;
+        if (startRound < 1) startRound = 1;
+
+        let totalClaimable = 0;
+        let totalClaimed = 0;
+        let items = [];
+
+        let promises = [];
+        for (let r = startRound; r <= currentRound; r++) {
+            promises.push(fetchRoundData(r));
+        }
+
+        const results = await Promise.all(promises);
+
+        results.forEach(res => {
+            if (res.amount > 0) {
+                if (res.isClaimed) {
+                    totalClaimed += parseFloat(res.amount);
+                    items.push(res);
+                } else {
+                    totalClaimable += parseFloat(res.amount);
+                    items.push(res);
+                }
+            }
+        });
+
+        items.sort((a, b) => b.round - a.round);
+
+        $('myTotalClaimable').innerText = formatNumber(totalClaimable);
+        $('myTotalClaimed').innerText = formatNumber(totalClaimed);
+
+        $('loadingText').innerText = '';
+        renderRewardsList(items);
+
+    } catch (error) {
+        console.error(error);
+        $('loadingText').innerText = '';
+        showToast(t('toast_data_fail'), true);
+    }
+}
+
+async function fetchRoundData(round) {
+    try {
+        const [amountBN, isClaimed, taxBN] = await Promise.all([
+            readOnlyDistContract.rewards(round, userAddress),
+            readOnlyDistContract.claimed(round, userAddress),
+            readOnlyDistContract.getClaimTax(round, userAddress)
+        ]);
+
+        const amount = ethers.utils.formatUnits(amountBN, USDT_DEC);
+        const tax = ethers.utils.formatUnits(taxBN, RAYT_DEC);
+
+        return {
+            round,
+            amount,
+            tax,
+            isClaimed,
+            rawAmount: amountBN,
+            rawTax: taxBN
+        };
+    } catch (e) {
+        return { round, amount: 0, tax: 0, isClaimed: false };
+    }
+}
+
+function renderRewardsList(items) {
+    const container = $('rewardsList');
+    
+    if (items.length === 0) {
+        container.innerHTML = `<div class="empty-state">${t('no_records_w1', {l: CONFIG.scanRoundsLimit})}</div>`;
+        return;
+    }
+
+    let html = '';
+    items.forEach(item => {
+        const statusClass = item.isClaimed ? 'claimed' : '';
+        const btnHtml = item.isClaimed 
+            ? `<button class="btn-action btn-disabled" disabled>${t('btn_claimed')}</button>`
+            : `<button class="btn-action btn-claim" onclick="handleClaim(${item.round}, '${item.rawTax.toString()}')">${t('btn_claim')}</button>`;
+
+        const taxText = t('tax_warning', {t: formatNumber(item.tax, 4)});
+
+        html += `
+            <div class="reward-card ${statusClass}" id="card-${item.round}">
+                <div class="r-left">
+                    <div class="r-round">${t('round_reward', {r: item.round})}</div>
+                    <div class="r-amount">${formatNumber(item.amount, 4)} <span>USDT</span></div>
+                    ${!item.isClaimed ? `<div class="r-tax">${taxText}</div>` : ''}
+                </div>
+                <div class="r-right" id="action-${item.round}">
+                    ${btnHtml}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+/* =========================================================
+ *  7. 领取动作 (授权 + Claim) - 已增加手机端兼容
+ * =======================================================*/
+async function handleClaim(round, rawTaxStr) {
+    const btnContainer = $(`action-${round}`);
+    const btn = btnContainer.querySelector('button');
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> ${t('btn_processing')}`;
+
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0x38') {
+            throw new Error("请先在钱包中切换到 BSC (币安智能链) 网络");
+        }
+
+        const rawTax = ethers.BigNumber.from(rawTaxStr);
+
+        if (rawTax.gt(0)) {
+            const raytBal = await raytContract.balanceOf(userAddress);
+            if (raytBal.lt(rawTax)) {
+                const need = ethers.utils.formatUnits(rawTax, RAYT_DEC);
+                throw new Error(`您的 RAYT 余额不足，领取需扣除 ${Number(need).toFixed(4)} RAYT 作为手续费`);
+            }
+
+            const allowance = await raytContract.allowance(userAddress, CONFIG.distributorAddr);
+            if (allowance.lt(rawTax)) {
+                showToast(t('toast_approving'));
+                btn.innerText = t('btn_authorizing');
+                
+                // ⭐ 修复手机钱包 not a function 的问题
+                let approveTx;
+                try {
+                    approveTx = await raytContract.approve(CONFIG.distributorAddr, ethers.constants.MaxUint256);
+                } catch (err) {
+                    if (err.code === 4001 || (err.message && err.message.includes('user rejected'))) {
+                        throw new Error("您拒绝了授权");
+                    }
+                    throw new Error("授权请求失败");
+                }
+                
+                showToast("请在钱包中确认【授权】..."); 
+                
+                // 如果是电脑端返回了标准交易，等待区块；如果是手机端返回异常，给 5 秒缓冲
+                if (approveTx && typeof approveTx.wait === 'function') {
+                    await approveTx.wait();
+                } else {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                }
+                
+                showToast(t('toast_approve_success'));
+            }
+        }
+
+        btn.innerText = t('btn_claiming');
+        
+        let claimTx;
+        try {
+            claimTx = await distContract.claim(round);
+        } catch (err) {
+            if (err.code === 4001 || (err.message && err.message.includes('user rejected'))) {
+                throw new Error("您取消了领取");
+            }
+            throw err;
+        }
+
+        showToast("请在钱包中确认【领取】...");
+        
+        if (claimTx && typeof claimTx.wait === 'function') {
+            await claimTx.wait();
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+
+        showToast(t('toast_claim_success', {r: round}));
+        
+        await updateWalletBalances();
+        await loadDashboardData();
+
+    } catch (error) {
+        console.error("Claim Error:", error);
+        
+        let errMsg = t('toast_claim_fail');
+        
+        if (error.code === 4001 || (error.message && error.message.includes('user rejected'))) {
+            errMsg = "您取消了交易";
+        } else if (error.message && error.message.includes('insufficient funds')) {
+            errMsg = "BNB 余额不足，无法支付 Gas 费";
+        } else if (error.data && error.data.message) {
+            errMsg = error.data.message;
+        } else if (error.message) {
+            errMsg = error.message.slice(0, 80); 
+        }
+        
+        showToast(errMsg, true);
+        btn.disabled = false;
+        btn.innerText = t('btn_claim');
+    }
+}
+
+/* =========================================================
+ *  8. 初始化
+ * =======================================================*/
+window.addEventListener('DOMContentLoaded', () => {
+    applyLanguage(); 
+    
+    if (window.ethereum) {
+        window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+            if (accounts.length > 0) {
+                $('connectBtn').click();
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

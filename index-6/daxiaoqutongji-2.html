@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>团队业绩与直推详情</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+:root {
+    --bg: #0a0508;
+    --card-bg: rgba(30, 10, 15, 0.75);
+    --primary: #ef4444; /* 喜庆红 */
+    --gold: #facc15;    /* 富贵金 */
+    --text: #f8fafc;
+    --text-muted: #a1a1aa;
+    --border: rgba(239, 68, 68, 0.3);
+    --gold-border: rgba(250, 204, 21, 0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: 
+        radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 10% 90%, rgba(250, 204, 21, 0.08) 0%, transparent 50%),
+        linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.9)),
+        url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><path d="M0 40V0h40v40H0zm39-1V1H1v38h38z" fill="rgba(239,68,68,0.05)"/></svg>');
+    background-attachment: fixed;
+}
+
+/* 顶部导航 */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(15, 5, 10, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.back-btn {
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(250, 204, 21, 0.1);
+    border: 1px solid var(--gold-border);
+    transition: 0.2s;
+}
+.back-btn:hover { background: rgba(250, 204, 21, 0.2); }
+
+.page-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, var(--gold), #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lang-select {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    color: var(--gold);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+}
+
+.btn-connect {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: #fff;
+    border: 1px solid var(--primary);
+    padding: 7px 15px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    transition: 0.2s;
+}
+.btn-connect:hover { filter: brightness(1.1); box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+
+/* 主体内容 */
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 进度卡片 */
+.progress-card {
+    background: var(--card-bg);
+    border: 1px solid var(--gold-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 20px rgba(250, 204, 21, 0.05);
+}
+.progress-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.progress-bar-bg {
+    height: 8px;
+    background: #27272a;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ef4444, #facc15);
+    width: 0%;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+.progress-tip {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.progress-tip span { color: var(--gold); font-weight: bold; }
+
+/* 概览数据 */
+.overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+.stat-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+.stat-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+.stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--gold);
+    margin-bottom: 8px;
+    text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
+}
+.stat-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+.stat-sub span { color: var(--primary); font-weight: bold; }
+
+/* 直推列表 */
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+}
+.section-title .tag {
+    font-size: 11px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--primary);
+    padding: 2px 8px;
+    border-radius: 6px;
+    color: var(--primary);
+    font-weight: normal;
+}
+
+.direct-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.direct-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: 0.2s;
+}
+.direct-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+}
+
+.d-left { display: flex; flex-direction: column; gap: 6px; }
+.d-addr { font-size: 15px; font-weight: 700; font-family: monospace; color: #fff; }
+.d-personal { font-size: 12px; color: var(--text-muted); }
+
+.d-right { text-align: right; display: flex; flex-direction: column; gap: 6px; }
+.d-team-val { font-size: 18px; font-weight: 800; color: var(--gold); }
+.d-team-label { font-size: 12px; color: var(--text-muted); }
+
+/* 级别标准表格 */
+.standard-card {
+    background: var(--card-bg);
+    border: 1px solid var(--gold-border);
+    border-radius: 16px;
+    padding: 20px 15px;
+    margin-bottom: 30px;
+}
+.standard-card h3 {
+    font-size: 16px;
+    color: var(--gold);
+    margin-bottom: 15px;
+    text-align: center;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+th {
+    padding: 10px 5px;
+    color: var(--gold);
+    border-bottom: 1px solid var(--gold-border);
+    font-weight: 600;
+    text-align: center;
+}
+td {
+    padding: 10px 5px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+}
+td:first-child {
+    color: var(--primary);
+    font-weight: bold;
+}
+td:last-child {
+    color: var(--gold);
+    font-weight: bold;
+}
+
+/* 隐藏提示 */
+.hidden { display: none !important; }
+.loading { text-align: center; padding: 30px; color: var(--primary); }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <a href="javascript:void(0)" id="backBtn" class="back-btn">←</a>
+        <div class="page-title" data-i18n="page_title">团队业绩</div>
+    </div>
+    <div class="header-right">
+        <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)">
+            <option value="zh-CN">简体</option>
+            <option value="zh-TW">繁體</option>
+            <option value="en">EN</option>
+            <option value="fr">FR</option>
+        </select>
+        <button id="connectBtn" class="btn-connect" data-i18n="btn_connect">连接钱包</button>
+    </div>
+</header>
+
+<div class="container" id="mainContent">
+    <!-- 连接钱包提示 -->
+    <div id="noWalletTip" class="stat-box" style="margin-top: 50px; display: block;">
+        <div class="stat-label" data-i18n="connect_prompt">请先连接钱包查看您的团队数据</div>
+    </div>
+
+    <!-- 数据内容区 (默认隐藏) -->
+    <div id="dataArea" class="hidden">
+        
+        <!-- 进度卡片 -->
+        <div class="progress-card">
+            <div class="progress-header">
+                <span id="levelTitle">升级至 C1 进度</span>
+            </div>
+            
+            <!-- 总业绩进度条 (原大区进度条) -->
+            <div style="margin-bottom: 15px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; color:var(--text-muted);">
+                    <span data-i18n="total_vol_progress">总业绩进度</span>
+                    <span style="font-family:monospace; color:#818cf8;"><span id="currentBigVal">0</span> / <span id="targetBigVal">0</span></span>
+                </div>
+                <div class="progress-bar-bg" style="height: 6px;">
+                    <!-- 总业绩进度条用科技蓝/紫 -->
+                    <div class="progress-bar-fill" id="progressFillBig" style="background: linear-gradient(90deg, #4f46e5, #818cf8); box-shadow: 0 0 10px rgba(129, 140, 248, 0.6);"></div>
+                </div>
+            </div>
+
+            <!-- 小区进度条 -->
+            <div style="margin-bottom: 15px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; color:var(--text-muted);">
+                    <span data-i18n="small_area_progress">小区进度</span>
+                    <span style="font-family:monospace; color:var(--gold);"><span id="currentProgress">0</span> / <span id="targetProgress">0</span></span>
+                </div>
+                <div class="progress-bar-bg" style="height: 6px;">
+                    <!-- 小区进度条保持红金 -->
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="progress-tip" id="progressTip" style="margin-top:10px; line-height: 1.6;">
+                --
+            </div>
+        </div>
+
+        <!-- 概览数据 -->
+        <div class="overview-grid">
+            <div class="stat-box">
+                <div class="stat-label" data-i18n="small_area">小区业绩</div>
+                <div class="stat-value" id="smallAreaVal">0 $</div>
+                <div class="stat-sub">
+                    <span data-i18n="direct_count">直推成员</span>: <span id="directCount">0</span>
+                    |
+                    <span data-i18n="team_count">伞下人数</span>: <span id="totalTeamCount">0</span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label" data-i18n="total_team">总团队业绩</div>
+                <div class="stat-value" id="teamVolVal">0 $</div>
+                <div class="stat-sub">
+                    <span data-i18n="big_area">大区业绩</span>: <span id="bigAreaVal">0 $</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 个人的调用次数统计 -->
+        <div class="overview-grid" style="margin-bottom: 25px;">
+            <div class="stat-box" style="grid-column: span 2; display: flex; justify-content: space-around; align-items: center; padding: 15px;">
+                <div style="text-align: center;">
+                    <div class="stat-label" data-i18n="call_total">累计被调用</div>
+                    <div class="stat-value" id="callCountVal" style="font-size: 22px; color: var(--primary);">0</div>
+                </div>
+                <div style="width: 1px; height: 35px; background: var(--border);"></div>
+                <div style="text-align: center;">
+                    <div class="stat-label" data-i18n="call_claimed">已领次数</div>
+                    <div class="stat-value" id="callClaimedVal" style="font-size: 22px; color: var(--text-muted);">0</div>
+                </div>
+                <div style="width: 1px; height: 35px; background: var(--border);"></div>
+                <div style="text-align: center;">
+                    <div class="stat-label" data-i18n="call_pending">待领次数</div>
+                    <div class="stat-value" id="callPendingVal" style="font-size: 22px; color: var(--gold);">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 直推列表 -->
+        <div class="section-title">
+            <span data-i18n="my_small_area">我的小区</span>
+            <span class="tag" data-i18n="direct_members">直推成员</span>
+        </div>
+        <div class="direct-list" id="directList">
+            <!-- 动态渲染 -->
+        </div>
+
+        <!-- C1-C9 级别标准 (更新了表头) -->
+        <div class="standard-card">
+            <h3 data-i18n="level_standard">C1-C9 级别升级标准</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th data-i18n="th_level">级别</th>
+                        <th data-i18n="th_big">总业绩要求 (USDT)</th> <!-- 修改表头 -->
+                        <th data-i18n="th_small">小区要求 (USDT)</th>
+                        <th data-i18n="th_rate">极差比例</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>C1</td><td>5,000</td><td>2,000</td><td>10%</td></tr>
+                    <tr><td>C2</td><td>20,000</td><td>10,000</td><td>20%</td></tr>
+                    <tr><td>C3</td><td>60,000</td><td>30,000</td><td>30%</td></tr>
+                    <tr><td>C4</td><td>200,000</td><td>100,000</td><td>40% (含10%平级)</td></tr>
+                    <tr><td>C5</td><td>600,000</td><td>300,000</td><td>50%</td></tr>
+                    <tr><td>C6</td><td>2,000,000</td><td>1,000,000</td><td>60%</td></tr>
+                    <tr><td>C7</td><td>6,000,000</td><td>3,000,000</td><td>70%</td></tr>
+                    <tr><td>C8</td><td>10,000,000</td><td>5,000,000</td><td>75%</td></tr>
+                    <tr><td>C9</td><td>20,000,000</td><td>10,000,000</td><td>80%</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+/* =========================================================
+ *  1. 多语言字典
+ * =======================================================*/
+const I18N = {
+    "zh-CN": {
+        page_title: "团队业绩",
+        btn_connect: "连接钱包",
+        connect_prompt: "请先连接钱包查看您的团队数据",
+        small_area: "小区业绩",
+        direct_count: "直推成员",
+        team_count: "伞下人数",
+        total_team: "总团队业绩",
+        big_area: "大区业绩",
+        my_small_area: "我的小区",
+        direct_members: "直推成员",
+        level_standard: "C1-C9 级别升级标准",
+        th_level: "级别",
+        th_big: "总业绩要求 (USDT)",
+        th_small: "小区要求 (USDT)",
+        th_rate: "极差比例",
+        progress_title: "升级至 {lvl} 进度",
+        total_vol_progress: "总业绩进度",
+        small_area_progress: "小区进度",
+        progress_need_both: "距离下一级还需：总业绩 <span>{big}</span> USDT，小区 <span>{small}</span> USDT",
+        progress_need_big: "距离下一级还需新增：总业绩 <span>{big}</span> USDT",
+        progress_need_small: "距离下一级还需新增：小区 <span>{small}</span> USDT",
+        progress_max: "已达最高级别 C9",
+        progress_done: "业绩已达标！请等待区块为您更新级别。",
+        no_directs: "暂无直推成员",
+        loading_directs: "正在拉取直推数据...",
+        personal_vol: "个人业绩: {val} USDT",
+        team_vol: "团队业绩",
+        call_total: "累计被调用",
+        call_claimed: "已领次数",
+        call_pending: "待领次数"
+    },
+    "zh-TW": {
+        page_title: "團隊業績",
+        btn_connect: "連接錢包",
+        connect_prompt: "請先連接錢包查看您的團隊數據",
+        small_area: "小區業績",
+        direct_count: "直推成員",
+        team_count: "傘下人數",
+        total_team: "總團隊業績",
+        big_area: "大區業績",
+        my_small_area: "我的小區",
+        direct_members: "直推成員",
+        level_standard: "C1-C9 級別升級標準",
+        th_level: "級別",
+        th_big: "總業績要求 (USDT)",
+        th_small: "小區要求 (USDT)",
+        th_rate: "極差比例",
+        progress_title: "升級至 {lvl} 進度",
+        total_vol_progress: "總業績進度",
+        small_area_progress: "小區進度",
+        progress_need_both: "距離下一級還需：總業績 <span>{big}</span> USDT，小區 <span>{small}</span> USDT",
+        progress_need_big: "距離下一級還需新增：總業績 <span>{big}</span> USDT",
+        progress_need_small: "距離下一級還需新增：小區 <span>{small}</span> USDT",
+        progress_max: "已達最高級別 C9",
+        progress_done: "業績已達標！請等待區塊為您更新級別。",
+        no_directs: "暫無直推成員",
+        loading_directs: "正在拉取直推數據...",
+        personal_vol: "個人業績: {val} USDT",
+        team_vol: "團隊業績",
+        call_total: "累計被調用",
+        call_claimed: "已領次數",
+        call_pending: "待領次數"
+    },
+    "en": {
+        page_title: "Team Performance",
+        btn_connect: "Connect Wallet",
+        connect_prompt: "Please connect wallet to view team data",
+        small_area: "Small Area Vol",
+        direct_count: "Directs",
+        team_count: "Total Team",
+        total_team: "Total Team Vol",
+        big_area: "Big Area Vol",
+        my_small_area: "My Small Area",
+        direct_members: "Direct Members",
+        level_standard: "C1-C9 Level Upgrade Standard",
+        th_level: "Level",
+        th_big: "Total Vol Req (USDT)",
+        th_small: "Small Area Req (USDT)",
+        th_rate: "Rate",
+        progress_title: "Progress to {lvl}",
+        total_vol_progress: "Total Vol Progress",
+        small_area_progress: "Small Area Progress",
+        progress_need_both: "Need Total Vol <span>{big}</span> USDT and Small Area <span>{small}</span> USDT more",
+        progress_need_big: "Need Total Vol <span>{big}</span> USDT more",
+        progress_need_small: "Need Small Area <span>{small}</span> USDT more",
+        progress_max: "Max Level C9 Reached",
+        progress_done: "Target met! Waiting for admin update.",
+        no_directs: "No direct members",
+        loading_directs: "Loading direct members...",
+        personal_vol: "Personal: {val} USDT",
+        team_vol: "Team Vol",
+        call_total: "Total Calls",
+        call_claimed: "Claimed",
+        call_pending: "Pending"
+    },
+    "fr": {
+        page_title: "Performance Équipe",
+        btn_connect: "Connecter",
+        connect_prompt: "Veuillez connecter le portefeuille",
+        small_area: "Vol. Petite Zone",
+        direct_count: "Directs",
+        team_count: "Équipe Totale",
+        total_team: "Vol. Équipe Totale",
+        big_area: "Vol. Grande Zone",
+        my_small_area: "Ma Petite Zone",
+        direct_members: "Membres Directs",
+        level_standard: "Norme de Niveau C1-C9",
+        th_level: "Niveau",
+        th_big: "Grande Zone (USDT)",
+        th_small: "Petite Zone (USDT)",
+        th_rate: "Taux",
+        progress_title: "Progression vers {lvl}",
+        total_vol_progress: "Progression Vol. Totale",
+        small_area_progress: "Progression Petite Zone",
+        progress_need_both: "Besoin de <span>{big}</span> USDT Vol. Totale et <span>{small}</span> USDT Petite Zone",
+        progress_need_big: "Besoin de <span>{big}</span> USDT Vol. Totale de plus",
+        progress_need_small: "Besoin de <span>{small}</span> USDT Petite Zone de plus",
+        progress_max: "Niveau Max C9 Atteint",
+        progress_done: "Objectif atteint! Attente admin.",
+        no_directs: "Aucun membre direct",
+        loading_directs: "Chargement...",
+        personal_vol: "Personnel: {val} USDT",
+        team_vol: "Vol. Équipe",
+        call_total: "Appels Totaux",
+        call_claimed: "Réclamés",
+        call_pending: "En Attente"
+    }
+};
+
+let currentLang = localStorage.getItem('team_lang') || 'zh-CN';
+
+function t(key, params = {}) {
+    let text = I18N[currentLang][key] || I18N['zh-CN'][key] || key;
+    for (let k in params) {
+        text = text.replace(`{${k}}`, params[k]);
+    }
+    return text;
+}
+
+function applyLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.innerHTML = t(key);
+    });
+    if (userAddress && !$('dataArea').classList.contains('hidden')) {
+        updateProgress(window.currentLvl, window.currentSmall, window.currentTeamVol);
+        loadDirects();
+    }
+}
+
+function changeLanguage(lang) {
+    if (!I18N[lang]) return;
+    currentLang = lang;
+    localStorage.setItem('team_lang', lang);
+    $('langSelect').value = lang;
+    applyLanguage();
+}
+
+/* =========================================================
+ *  2. 配置区
+ * =======================================================*/
+const CONFIG = {
+    backUrl: "index-6.html", 
+    custodyContract: "0xaB7920588bCB195C9F714FDbaBe31D039c52DF43",
+    referralRegistry: "0x2EA13E42C0e05678D50d010Ca2D390742626EA9e",
+    LEVEL_CONFIGS: [
+        { lvl: 1, big: 5000, small: 2000 }, // big 现在代表总业绩要求
+        { lvl: 2, big: 20000, small: 10000 },
+        { lvl: 3, big: 60000, small: 30000 },
+        { lvl: 4, big: 200000, small: 100000 },
+        { lvl: 5, big: 600000, small: 300000 },
+        { lvl: 6, big: 2000000, small: 1000000 },
+        { lvl: 7, big: 6000000, small: 3000000 },
+        { lvl: 8, big: 10000000, small: 5000000 },
+        { lvl: 9, big: 20000000, small: 10000000 }
+    ]
+};
+
+const ABI = {
+    custody: [
+        "function teamVolume(address) view returns (uint256)",
+        "function bigArea(address) view returns (uint256)",
+        "function personalVolume(address) view returns (uint256)",
+        "function getUserLevel(address) view returns (uint8)",
+        "function teamCount(address) view returns (uint256)",
+        "function getCustodyBaseInfo(address) view returns (tuple(uint256 totalAmount, uint256 miningPrincipal, uint256 callPrincipal, uint256 startTime, uint256 lastMiningClaimDay, uint256 miningClaimedDays, uint256 callCount, uint256 callClaimedCount, bool active, bool vip))"
+    ],
+    referral: [
+        "function getDirectReferrals(address) view returns (address[])"
+    ]
+};
+
+/* =========================================================
+ *  3. 全局变量与工具
+ * =======================================================*/
+let provider, signer, userAddress;
+let custodyContract, referralContract;
+
+const $ = id => document.getElementById(id);
+
+function formatMoney(num) {
+    return Number(num).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    }) + ' $';
+}
+
+function shortAddr(addr) {
+    return addr ? addr.slice(0, 5) + '...' + addr.slice(-3) : '';
+}
+
+/* =========================================================
+ *  4. 初始化与返回
+ * =======================================================*/
+window.addEventListener('DOMContentLoaded', () => {
+    $('langSelect').value = currentLang;
+    applyLanguage();
+    
+    if (window.ethereum) {
+        window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+            if (accounts.length > 0) {
+                $('connectBtn').click();
+            }
+        });
+    }
+});
+
+$('backBtn').onclick = () => {
+    window.location.href = CONFIG.backUrl;
+};
+
+/* =========================================================
+ *  5. 连接钱包与数据加载
+ * =======================================================*/
+$('connectBtn').onclick = async () => {
+    if (!window.ethereum) return alert("请安装 MetaMask 或使用 TP/OKX 钱包");
+    try {
+        $('connectBtn').innerText = "连接中...";
+        
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0x38') {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x38' }]
+                });
+            } catch (e) {
+                alert("请手动切换到 BSC 主网");
+                $('connectBtn').innerText = t('btn_connect');
+                return;
+            }
+        }
+
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+
+        custodyContract = new ethers.Contract(CONFIG.custodyContract, ABI.custody, provider);
+        referralContract = new ethers.Contract(CONFIG.referralRegistry, ABI.referral, provider);
+
+        $('connectBtn').innerText = shortAddr(userAddress);
+        
+        $('noWalletTip').classList.add('hidden');
+        $('dataArea').classList.remove('hidden');
+
+        await loadDashboardData();
+
+    } catch (err) {
+        console.error(err);
+        $('connectBtn').innerText = t('btn_connect');
+        alert("连接失败: " + (err.message || "未知错误"));
+    }
+};
+
+/* =========================================================
+ *  6. 核心数据加载逻辑
+ * =======================================================*/
+async function loadDashboardData() {
+    try {
+        const [teamVolWei, bigAreaWei, personalVolWei, cLevelVal, teamCountVal, custodyBase] = await Promise.all([
+            custodyContract.teamVolume(userAddress),
+            custodyContract.bigArea(userAddress),
+            custodyContract.personalVolume(userAddress),
+            custodyContract.getUserLevel(userAddress),
+            custodyContract.teamCount(userAddress),
+            custodyContract.getCustodyBaseInfo(userAddress)
+        ]);
+
+        const realSmallWei = teamVolWei.sub(bigAreaWei);
+
+        const teamVol = parseFloat(ethers.utils.formatEther(teamVolWei));
+        const bigArea = parseFloat(ethers.utils.formatEther(bigAreaWei));
+        const realSmall = parseFloat(ethers.utils.formatEther(realSmallWei));
+        
+        // 动态计算应得级别 (现在用 teamVol 判断)
+        let calculatedLvl = 0;
+        for(let j=CONFIG.LEVEL_CONFIGS.length-1; j>=0; j--) {
+            if(teamVol >= CONFIG.LEVEL_CONFIGS[j].big && realSmall >= CONFIG.LEVEL_CONFIGS[j].small) {
+                calculatedLvl = CONFIG.LEVEL_CONFIGS[j].lvl;
+                break;
+            }
+        }
+        const currentLvl = Math.max(Number(cLevelVal), calculatedLvl);
+        const teamCount = Number(teamCountVal);
+
+        window.currentLvl = currentLvl;
+        window.currentSmall = realSmall;
+        window.currentTeamVol = teamVol; // 保存总业绩供渲染使用
+
+        $('smallAreaVal').innerText = formatMoney(realSmall);
+        $('teamVolVal').innerText = formatMoney(teamVol);
+        $('bigAreaVal').innerText = formatMoney(bigArea);
+        $('totalTeamCount').innerText = teamCount;
+
+        const callTotal = Number(custodyBase.callCount);
+        const callClaimed = Number(custodyBase.callClaimedCount);
+        const callPending = callTotal - callClaimed;
+
+        $('callCountVal').innerText = callTotal;
+        $('callClaimedVal').innerText = callClaimed;
+        $('callPendingVal').innerText = callPending;
+
+        updateProgress(currentLvl, realSmall, teamVol);
+        await loadDirects();
+
+    } catch (err) {
+        console.error("加载数据失败", err);
+    }
+}
+
+function updateProgress(currentLvl, realSmall, teamVol) {
+    let targetLvl = currentLvl + 1;
+    if (targetLvl > 9) targetLvl = 9;
+
+    const nextConfig = CONFIG.LEVEL_CONFIGS.find(c => c.lvl === targetLvl);
+    
+    if (!nextConfig) {
+        $('levelTitle').innerText = t('progress_max');
+        $('currentProgress').innerText = "MAX";
+        $('targetProgress').innerText = "";
+        $('progressFill').style.width = "100%";
+        $('currentBigVal').innerText = "MAX";
+        $('targetBigVal').innerText = "";
+        $('progressFillBig').style.width = "100%";
+        $('progressTip').innerText = "";
+        return;
+    }
+
+    $('levelTitle').innerText = t('progress_title', { lvl: `C${targetLvl}` });
+    
+    // 1. 更新总业绩进度
+    const targetBig = nextConfig.big;
+    let percentBig = (teamVol / targetBig) * 100;
+    if (percentBig > 100) percentBig = 100;
+    
+    $('currentBigVal').innerText = Math.floor(teamVol).toLocaleString();
+    $('targetBigVal').innerText = targetBig.toLocaleString();
+    $('progressFillBig').style.width = percentBig + "%";
+
+    // 2. 更新小区进度
+    const targetSmall = nextConfig.small;
+    let percentSmall = (realSmall / targetSmall) * 100;
+    if (percentSmall > 100) percentSmall = 100;
+
+    $('currentProgress').innerText = Math.floor(realSmall).toLocaleString();
+    $('targetProgress').innerText = targetSmall.toLocaleString();
+    $('progressFill').style.width = percentSmall + "%";
+
+    // 3. 更新提示文案
+    const diffSmall = targetSmall - realSmall;
+    const diffBig = targetBig - teamVol;
+
+    if (diffSmall <= 0 && diffBig <= 0) {
+        $('progressTip').innerHTML = `<span style="color:var(--gold);">${t('progress_done')}</span>`;
+    } else {
+        if (diffBig > 0 && diffSmall > 0) {
+            $('progressTip').innerHTML = t('progress_need_both', { 
+                big: Math.max(0, diffBig).toLocaleString(),
+                small: Math.max(0, diffSmall).toLocaleString() 
+            });
+        } else if (diffBig > 0) {
+            $('progressTip').innerHTML = t('progress_need_big', { 
+                big: Math.max(0, diffBig).toLocaleString()
+            });
+        } else {
+            $('progressTip').innerHTML = t('progress_need_small', { 
+                small: Math.max(0, diffSmall).toLocaleString() 
+            });
+        }
+    }
+}
+
+async function loadDirects() {
+    const listContainer = $('directList');
+    listContainer.innerHTML = `<div class="loading">${t('loading_directs')}</div>`;
+
+    try {
+        const directs = await referralContract.getDirectReferrals(userAddress);
+        $('directCount').innerText = directs.length;
+
+        if (directs.length === 0) {
+            listContainer.innerHTML = `<div class="loading" style="color:#94a3b8;">${t('no_directs')}</div>`;
+            return;
+        }
+
+        listContainer.innerHTML = '';
+        let html = '';
+
+        for (let i = 0; i < directs.length; i += 5) {
+            const batch = directs.slice(i, i + 5);
+            const promises = batch.map(async (addr) => {
+                const [pVolWei, tVolWei] = await Promise.all([
+                    custodyContract.personalVolume(addr),
+                    custodyContract.teamVolume(addr)
+                ]);
+                return {
+                    addr: addr,
+                    personal: parseFloat(ethers.utils.formatEther(pVolWei)),
+                    team: parseFloat(ethers.utils.formatEther(tVolWei))
+                };
+            });
+
+            const results = await Promise.all(promises);
+
+            results.forEach(res => {
+                html += `
+                    <div class="direct-card">
+                        <div class="d-left">
+                            <div class="d-addr">${shortAddr(res.addr)}</div>
+                            <div class="d-personal">${t('personal_vol', { val: res.personal.toLocaleString() })}</div>
+                        </div>
+                        <div class="d-right">
+                            <div class="d-team-val">${formatMoney(res.team)}</div>
+                            <div class="d-team-label">${t('team_vol')}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML = html;
+            await new Promise(r => setTimeout(r, 100));
+        }
+
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = `<div class="loading" style="color:#ef4444;">Error</div>`;
+    }
+}
+</script>
+</body>
+</html>

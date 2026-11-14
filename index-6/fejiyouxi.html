@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RAYC 星际飞机大战 - 音效版</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+    :root {
+        --bg: #0f0b1a;
+        --primary: #39ff14;
+        --danger: #ff3366;
+        --warning: #f59e0b;
+        --accent-pink: #ec4899;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+        background-color: var(--bg);
+        display: flex; justify-content: center; align-items: center;
+        height: 100vh; overflow: hidden;
+        font-family: 'Courier New', Courier, monospace;
+        color: #fff;
+    }
+    #game-container {
+        position: relative;
+        width: 100%; max-width: 500px;
+        aspect-ratio: 9 / 16;
+        background: #000;
+        box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
+        border: 2px solid #333;
+        overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    /* 返回按钮 */
+    .back-btn {
+        position: absolute; top: 15px; left: 15px; z-index: 100;
+        background: rgba(236, 72, 153, 0.15); border: 1px solid var(--accent-pink);
+        color: #fbcfe8; padding: 6px 14px; border-radius: 30px;
+        text-decoration: none; font-size: 13px; font-weight: bold;
+        backdrop-filter: blur(10px); transition: all 0.3s ease;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3);
+        display: flex; align-items: center; gap: 6px;
+    }
+    .back-btn:hover { background: var(--accent-pink); color: #fff; transform: translateY(-2px); }
+
+    /* 音效开关 */
+    .sound-btn {
+        position: absolute; top: 15px; right: 15px; z-index: 100;
+        background: rgba(255, 255, 255, 0.1); border: 1px solid #555;
+        color: #fff; padding: 6px 10px; border-radius: 50%;
+        cursor: pointer; font-size: 16px; transition: 0.2s;
+    }
+    .sound-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    #ui-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; display: flex; flex-direction: column; 
+        padding: 15px; padding-left: 90px; 
+    }
+    .top-ui { display: flex; justify-content: space-between; align-items: flex-start; }
+    .score-board { color: var(--primary); font-size: 20px; font-weight: bold; text-shadow: 0 0 10px var(--primary); }
+    .level-board { color: #00ffff; font-size: 16px; font-weight: bold; margin-top: 5px; text-shadow: 0 0 10px #00ffff; }
+    .hp-board { color: var(--danger); font-size: 20px; font-weight: bold; text-align: right; text-shadow: 0 0 10px var(--danger); margin-right: 40px;}
+    .powerup-status { margin-top: 10px; color: var(--warning); font-size: 14px; font-weight: bold; text-shadow: 0 0 10px var(--warning); }
+
+    .overlay {
+        position: absolute; inset: 0; background: rgba(15, 11, 26, 0.9);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 10; pointer-events: auto; text-align: center; padding: 20px;
+    }
+    .hidden { display: none !important; }
+    h1 { color: var(--primary); font-size: 26px; margin-bottom: 10px; text-shadow: 0 0 15px var(--primary); }
+    p { color: #88ffcc; font-size: 14px; margin-bottom: 25px; line-height: 1.6; }
+    
+    .btn {
+        background: transparent; border: 2px solid var(--primary); color: var(--primary);
+        padding: 12px 30px; font-size: 16px; font-weight: bold; font-family: inherit;
+        cursor: pointer; transition: all 0.2s; text-transform: uppercase; box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+    }
+    .btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary); }
+    .btn:disabled { border-color: #555; color: #555; cursor: not-allowed; box-shadow: none; }
+    
+    #level-up-screen { background: rgba(0,0,0,0.7); z-index: 20; }
+    #level-up-screen h1 { color: #00ffff; text-shadow: 0 0 20px #00ffff; font-size: 32px; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <a href="index-6.html" class="back-btn">← 返回</a>
+    <button id="soundToggle" class="sound-btn" onclick="toggleSound()">🔊</button>
+
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="top-ui">
+            <div>
+                <div class="score-board">SCORE: <span id="score">000000</span></div>
+                <div class="level-board">LEVEL: <span id="level">1</span></div>
+                <div class="powerup-status" id="powerup-status"></div>
+            </div>
+            <div class="hp-board" id="hp">❤️❤️❤️</div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="overlay">
+        <h1>✈️ RAYC 星际大战</h1>
+        <p>消耗 <span id="cost-text">200</span> RAYT 参与游戏<br>长按屏幕拖动战机即可开火！</p>
+        <button id="start-btn" class="btn" onclick="startGameAndPay()">连接钱包并开始</button>
+        <div id="wallet-info" class="wallet-info" style="margin-top:15px; font-size:12px; color:#666;">请连接 Web3 钱包 (BSC主网)</div>
+    </div>
+
+    <div id="game-over-screen" class="overlay hidden">
+        <h1 style="color: var(--danger); text-shadow: 0 0 15px var(--danger);">GAME OVER</h1>
+        <p>最终得分: <span id="final-score" style="color: #fff; font-size: 24px; font-weight: bold;">0</span></p>
+        <p>到达关卡: <span id="final-level" style="color: #00ffff; font-size: 20px; font-weight: bold;">1</span></p>
+        <button class="btn" style="border-color: var(--danger); color: var(--danger);" onclick="replay()">重新开始</button>
+    </div>
+
+    <div id="level-up-screen" class="overlay hidden">
+        <h1>LEVEL UP!</h1>
+        <p style="color:#fff; font-size: 18px;">进入第 <span id="next-level-text">2</span> 关</p>
+        <button class="btn" style="border-color: #00ffff; color: #00ffff;" onclick="continueGame()">继续战斗</button>
+    </div>
+</div>
+
+<script>
+// ==================== 核心配置区 ====================
+const TOKEN_ADDRESS = "0x88201e877C4FC38D2C1c3AF20A32234629f02405"; 
+const COST_AMOUNT = "10"; 
+const GAME_RECEIVER = "0xCF9F6eeC68959699f694668A57a5560Ea6c9ac2a"; 
+// ===================================================
+
+// ==================== 音频引擎 (Web Audio API) ====================
+let audioCtx;
+let isMuted = false;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function toggleSound() {
+    isMuted = !isMuted;
+    document.getElementById('soundToggle').innerText = isMuted ? '🔇' : '🔊';
+}
+
+// 播放单音调
+function playTone(type, startFreq, endFreq, duration, vol=0.1) {
+    if (isMuted || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + duration);
+    
+    gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+// 播放白噪音 (爆炸声)
+function playNoise(duration, vol=0.2) {
+    if (isMuted || !audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * duration;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    
+    noise.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    noise.start();
+}
+
+// 音效封装
+const SFX = {
+    shoot: () => playTone('square', 880, 440, 0.05, 0.05), // 方波射击声
+    explosion: () => playNoise(0.3, 0.15),                 // 白噪音爆炸声
+    powerup: () => playTone('sine', 400, 1200, 0.2, 0.2),  // 正弦上升音
+    hit: () => playTone('sawtooth', 150, 50, 0.3, 0.2)     // 锯齿波受击声
+};
+// ============================================================
+
+document.getElementById('cost-text').innerText = COST_AMOUNT;
+
+const TOKEN_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address owner) view returns (uint256)", "function decimals() view returns (uint8)"];
+let provider, signer, userAddress, tokenContract, isPaying = false;
+
+async function initWallet() {
+    if (window.ethereum) {
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts.length > 0) setupProvider(accounts[0]);
+        } catch(e) {}
+    }
+}
+
+function setupProvider(addr) {
+    provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+    signer = provider.getSigner();
+    userAddress = addr;
+    tokenContract = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
+    document.getElementById('wallet-info').innerText = "已连接: " + addr.slice(0,6) + "..." + addr.slice(-4);
+    document.getElementById('start-btn').innerText = "支付并开始游戏";
+}
+
+async function startGameAndPay() {
+    if (isPaying) return;
+    if (!window.ethereum) return alert("请安装钱包插件！");
+    
+    // 用户点击时初始化音频（绕过浏览器自动播放限制）
+    initAudio();
+
+    if (!userAddress) {
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            setupProvider(accounts[0]);
+        } catch (err) { return alert("请先连接钱包"); }
+    }
+
+    const btn = document.getElementById('start-btn');
+    btn.disabled = true; isPaying = true;
+    btn.innerText = "正在请求交易...";
+
+    try {
+        const net = await provider.getNetwork();
+        if (net.chainId !== 56) {
+            try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x38' }] }); } 
+            catch(e) { alert("请切换到 BSC 主网"); btn.disabled = false; isPaying = false; btn.innerText = "支付并开始游戏"; return; }
+        }
+
+        const decimals = await tokenContract.decimals();
+        const amountWei = ethers.utils.parseUnits(COST_AMOUNT, decimals);
+        const balance = await tokenContract.balanceOf(userAddress);
+        
+        if (balance.lt(amountWei)) {
+            alert("您的 RAYT 余额不足！");
+            btn.disabled = false; isPaying = false; btn.innerText = "支付并开始游戏"; return;
+        }
+
+        btn.innerText = "等待链上确认...";
+        const tx = await tokenContract.transfer(GAME_RECEIVER, amountWei);
+        await tx.wait();
+
+        btn.disabled = false; isPaying = false; btn.innerText = "支付并开始游戏";
+        startGame();
+
+    } catch (e) {
+        console.error(e);
+        alert("交易失败或取消: " + (e.reason || e.message));
+        btn.disabled = false; isPaying = false; btn.innerText = "支付并开始游戏";
+    }
+}
+
+// ==================== Canvas 游戏引擎 ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameLoopId, score = 0, hp = 3, level = 1, isPlaying = false, isPausedForLevelUp = false;
+
+const player = { x: 0, y: 0, w: 44, h: 54 };
+let bullets = [], enemies = [], particles = [], stars = [], powerUps = [];
+
+let frameCount = 0, enemySpawnRate = 40, enemyBaseSpeed = 1.5, isDualShot = false, dualShotTimer = 0;
+
+const COLOR_PLAYER = '#39ff14';
+const COLOR_ENEMY = '#ff3366';
+const COLOR_BULLET = '#00ffff';
+
+function resizeCanvas() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    player.x = canvas.width / 2 - player.w / 2;
+    player.y = canvas.height - 120;
+    initStars();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function initStars() {
+    stars = [];
+    for(let i=0; i<120; i++) {
+        stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: Math.random() * 3 + 1, size: Math.random() * 2 });
+    }
+}
+
+function startGame() {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('level-up-screen').classList.add('hidden');
+    
+    resizeCanvas();
+    score = 0; hp = 3; level = 1; bullets = []; enemies = []; particles = []; powerUps = [];
+    frameCount = 0; enemySpawnRate = 40; enemyBaseSpeed = 1.5; isDualShot = false; dualShotTimer = 0;
+    isPlaying = true; isPausedForLevelUp = false;
+    
+    updateUI();
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    gameLoop();
+}
+
+function updateUI() {
+    document.getElementById('score').innerText = String(score).padStart(6, '0');
+    document.getElementById('level').innerText = level;
+    let hearts = ""; for(let i=0; i<hp; i++) hearts += "❤️";
+    document.getElementById('hp').innerText = hearts || "💀";
+    let powerText = isDualShot ? `⚡ 双发子弹 (${Math.ceil(dualShotTimer/60)}s)` : "";
+    document.getElementById('powerup-status').innerText = powerText;
+}
+
+let isDragging = false;
+function handleMove(e) {
+    if (!isPlaying || isPausedForLevelUp) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    player.x = clientX - rect.left - player.w / 2;
+    player.y = clientY - rect.top - player.h / 2;
+    
+    if (player.x < 0) player.x = 0;
+    if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
+    if (player.y < 0) player.y = 0;
+    if (player.y > canvas.height - player.h) player.y = canvas.height - player.h;
+}
+
+canvas.addEventListener('touchstart', (e) => { initAudio(); isDragging = true; handleMove(e); }, {passive: false});
+canvas.addEventListener('touchmove', handleMove, {passive: false});
+canvas.addEventListener('touchend', () => isDragging = false);
+canvas.addEventListener('touchcancel', () => isDragging = false);
+
+canvas.addEventListener('mousedown', (e) => { initAudio(); isDragging = true; handleMove(e); });
+canvas.addEventListener('mousemove', (e) => { if(isDragging) handleMove(e); });
+window.addEventListener('mouseup', () => isDragging = false); 
+
+function gameLoop() {
+    if (!isPlaying || isPausedForLevelUp) return;
+    update();
+    draw();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    frameCount++;
+    stars.forEach(s => { s.y += s.speed; if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; } });
+
+    // 开火音效限制（避免每秒太多次太吵）
+    if (isDragging && frameCount % 10 === 0) {
+        if (frameCount % 20 === 0) SFX.shoot(); // 每两发子弹播一次声音，防止破音
+        
+        if (isDualShot) {
+            bullets.push({ x: player.x + 8, y: player.y, w: 4, h: 16, speed: 13 });
+            bullets.push({ x: player.x + player.w - 12, y: player.y, w: 4, h: 16, speed: 13 });
+        } else {
+            bullets.push({ x: player.x + player.w/2 - 2, y: player.y, w: 4, h: 16, speed: 13 });
+        }
+    }
+
+    for(let i = bullets.length - 1; i >= 0; i--) { bullets[i].y -= bullets[i].speed; if (bullets[i].y < -20) bullets.splice(i, 1); }
+
+    if (frameCount % enemySpawnRate === 0) {
+        enemies.push({ x: Math.random() * (canvas.width - 40), y: -40, w: 40, h: 40, speed: enemyBaseSpeed + Math.random() * 1.5 });
+    }
+    for(let i = enemies.length - 1; i >= 0; i--) { enemies[i].y += enemies[i].speed; if (enemies[i].y > canvas.height) enemies.splice(i, 1); }
+
+    if (isDualShot) { dualShotTimer--; if (dualShotTimer <= 0) isDualShot = false; if (frameCount % 60 === 0) updateUI(); }
+
+    // 道具移动与拾取
+    for(let i = powerUps.length - 1; i >= 0; i--) {
+        let p = powerUps[i]; p.y += p.speed;
+        if (p.y > player.y && p.y < player.y + player.h && p.x > player.x && p.x < player.x + player.w) {
+            if (p.type === 'heal') hp = Math.min(5, hp + 1);
+            if (p.type === 'dual') { isDualShot = true; dualShotTimer = 600; }
+            SFX.powerup(); // 播放吃道具音效
+            updateUI(); createExplosion(p.x, p.y, '#f59e0b'); powerUps.splice(i, 1);
+        } else if (p.y > canvas.height) powerUps.splice(i, 1);
+    }
+
+    // 子弹打敌机
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            if (bullets[i] && enemies[j] && rectIntersect(bullets[i], enemies[j])) {
+                SFX.explosion(); // 爆炸音效
+                createExplosion(enemies[j].x + enemies[j].w/2, enemies[j].y + enemies[j].h/2, COLOR_ENEMY);
+                bullets.splice(i, 1); enemies.splice(j, 1); score += 10; updateUI();
+                if (Math.random() < 0.1) {
+                    powerUps.push({ x: Math.random() * (canvas.width - 24), y: -20, w: 24, h: 24, speed: 2, type: Math.random() > 0.5 ? 'heal' : 'dual' });
+                }
+                break;
+            }
+        }
+    }
+
+    // 敌机撞玩家
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        if (rectIntersect(player, enemies[i])) {
+            SFX.hit(); // 受击音效
+            createExplosion(player.x + player.w/2, player.y + player.h/2, COLOR_PLAYER);
+            enemies.splice(i, 1); hp--; updateUI();
+            if (hp <= 0) { gameOver(); return; }
+        }
+    }
+
+    if (score >= level * 10000) { levelUp(); return; }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#0f0b1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#555';
+    stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+
+    ctx.save();
+    ctx.translate(player.x + player.w/2, player.y + player.h/2);
+    let flameSize = Math.random() * 10 + 15;
+    ctx.fillStyle = '#ff9900';
+    ctx.shadowBlur = 15; ctx.shadowColor = '#ff9900';
+    ctx.beginPath(); ctx.moveTo(-6, 20); ctx.lineTo(6, 20); ctx.lineTo(0, 20 + flameSize); ctx.closePath(); ctx.fill();
+    
+    ctx.fillStyle = '#e2e8f0'; 
+    ctx.shadowBlur = 10; ctx.shadowColor = COLOR_PLAYER;
+    ctx.beginPath();
+    ctx.moveTo(0, -25); ctx.lineTo(8, -5); ctx.lineTo(22, 5); ctx.lineTo(22, 15);
+    ctx.lineTo(8, 10); ctx.lineTo(0, 20); ctx.lineTo(-8, 10); ctx.lineTo(-22, 15);
+    ctx.lineTo(-22, 5); ctx.lineTo(-8, -5); ctx.closePath(); ctx.fill();
+    
+    ctx.fillStyle = COLOR_PLAYER;
+    ctx.beginPath(); ctx.ellipse(0, -5, 4, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = COLOR_BULLET; ctx.shadowColor = COLOR_BULLET; ctx.shadowBlur = 10;
+    bullets.forEach(b => { ctx.fillRect(b.x, b.y, b.w, b.h); });
+
+    enemies.forEach(e => {
+        ctx.save(); ctx.translate(e.x + e.w/2, e.y + e.h/2);
+        ctx.fillStyle = COLOR_ENEMY; ctx.shadowColor = COLOR_ENEMY; ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(0, 15); ctx.lineTo(18, 0); ctx.lineTo(10, -15); ctx.lineTo(-10, -15); ctx.lineTo(-18, 0);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    });
+
+    powerUps.forEach(p => {
+        ctx.fillStyle = p.type === 'heal' ? '#10b981' : '#f59e0b';
+        ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 15;
+        ctx.beginPath(); ctx.arc(p.x + p.w/2, p.y + p.h/2, p.w/2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial';
+        ctx.fillText(p.type === 'heal' ? '+' : '⚡', p.x + 7, p.y + 18);
+    });
+
+    particles.forEach(p => {
+        ctx.fillStyle = p.color; ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    
+    drawRadar();
+}
+
+function drawRadar() {
+    const radarX = canvas.width - 60;
+    const radarY = 60;
+    const radarRadius = 45;
+    ctx.fillStyle = 'rgba(57, 255, 20, 0.05)';
+    ctx.beginPath(); ctx.arc(radarX, radarY, radarRadius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(57, 255, 20, 0.4)'; ctx.lineWidth = 2; ctx.stroke();
+    
+    const sweepAngle = (frameCount * 0.05) % (Math.PI * 2);
+    ctx.strokeStyle = 'rgba(57, 255, 20, 0.8)';
+    ctx.beginPath(); ctx.moveTo(radarX, radarY);
+    ctx.lineTo(radarX + Math.cos(sweepAngle) * radarRadius, radarY + Math.sin(sweepAngle) * radarRadius); ctx.stroke();
+    
+    ctx.fillStyle = COLOR_ENEMY; ctx.shadowColor = COLOR_ENEMY; ctx.shadowBlur = 5;
+    enemies.forEach(e => {
+        let dx = e.x - player.x, dy = e.y - player.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 400) {
+            let rx = radarX + dx * 0.1, ry = radarY + dy * 0.1;
+            let radarDist = Math.sqrt((rx-radarX)*(rx-radarX) + (ry-radarY)*(ry-radarY));
+            if (radarDist > radarRadius - 4) {
+                let angle = Math.atan2(ry - radarY, rx - radarX);
+                rx = radarX + Math.cos(angle) * (radarRadius - 4);
+                ry = radarY + Math.sin(angle) * (radarRadius - 4);
+            }
+            ctx.beginPath(); ctx.arc(rx, ry, 3, 0, Math.PI * 2); ctx.fill();
+        }
+    });
+    ctx.shadowBlur = 0;
+}
+
+function rectIntersect(r1, r2) { return !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y); }
+
+function createExplosion(x, y, color) {
+    for (let i = 0; i < 15; i++) {
+        let angle = Math.random() * Math.PI * 2, speed = Math.random() * 4 + 1;
+        particles.push({ x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: Math.random() * 3 + 1, life: 30, maxLife: 30, color: color });
+    }
+}
+
+function levelUp() {
+    isPausedForLevelUp = true; isPlaying = false;
+    isDragging = false; 
+    document.getElementById('next-level-text').innerText = level + 1;
+    document.getElementById('level-up-screen').classList.remove('hidden');
+}
+
+function continueGame() {
+    level++;
+    enemySpawnRate = Math.max(12, enemySpawnRate - 5);
+    enemyBaseSpeed += 0.5;
+    document.getElementById('level-up-screen').classList.add('hidden');
+    isPausedForLevelUp = false; isPlaying = true;
+    updateUI(); gameLoop();
+}
+
+function gameOver() {
+    isPlaying = false;
+    isDragging = false; 
+    document.getElementById('final-score').innerText = score;
+    document.getElementById('final-level').innerText = level;
+    document.getElementById('game-over-screen').classList.remove('hidden');
+}
+
+function replay() {
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('start-screen').classList.remove('hidden');
+    document.getElementById('start-btn').innerText = "支付 RAYT 并重新开始";
+}
+
+window.onload = () => { resizeCanvas(); initWallet(); };
+</script>
+</body>
+</html>

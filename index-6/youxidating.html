@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RAYC 游戏中心</title>
+<style>
+    :root {
+        --bg1: #0a0f2a; --bg2: #030617;
+        --primary: #38bdf8; --accent: #ec4899;
+        --card-bg: rgba(12, 22, 48, 0.7);
+        --border: rgba(79, 172, 254, 0.25);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at 20% 30%, var(--bg1), var(--bg2));
+        min-height: 100vh; color: #f0f3ff; padding: 20px;
+    }
+
+    /* 左上角返回按钮 */
+    .back-btn {
+        position: fixed; top: 20px; left: 20px; z-index: 100;
+        background: rgba(236, 72, 153, 0.15); border: 1px solid var(--accent);
+        color: #fbcfe8; padding: 8px 16px; border-radius: 30px;
+        text-decoration: none; font-size: 14px; font-weight: bold;
+        backdrop-filter: blur(10px); transition: all 0.3s ease;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3);
+        display: flex; align-items: center; gap: 6px;
+    }
+    .back-btn:hover { background: var(--accent); color: #fff; transform: translateY(-2px); }
+
+    .header {
+        text-align: center; margin-top: 60px; margin-bottom: 40px;
+    }
+    .header h1 {
+        font-size: 32px; font-weight: 800;
+        background: linear-gradient(135deg, #aaffff, #4facfe);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+    }
+    .header p { color: #94a3b8; font-size: 14px; margin-top: 10px; }
+
+    /* 游戏卡片网格 */
+    .games-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px; max-width: 1000px; margin: 0 auto;
+    }
+
+    .game-card {
+        background: var(--card-bg); border: 1px solid var(--border);
+        border-radius: 24px; padding: 30px 20px; text-align: center;
+        text-decoration: none; color: #fff;
+        transition: all 0.3s ease; position: relative; overflow: hidden;
+        display: flex; flex-direction: column; align-items: center;
+    }
+    .game-card::before {
+        content: ''; position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), transparent);
+        opacity: 0; transition: opacity 0.3s ease;
+    }
+    .game-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary);
+        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.2);
+    }
+    .game-card:hover::before { opacity: 1; }
+
+    .game-icon {
+        font-size: 50px; margin-bottom: 15px;
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+        z-index: 1;
+    }
+    .game-title { font-size: 20px; font-weight: bold; margin-bottom: 8px; z-index: 1; }
+    .game-desc { font-size: 13px; color: #94a3b8; line-height: 1.5; z-index: 1; }
+
+    /* 游戏标签 */
+    .tag {
+        margin-top: 15px; padding: 4px 12px; border-radius: 20px;
+        font-size: 11px; font-weight: bold; z-index: 1;
+        background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .tag.hot { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+</style>
+</head>
+<body>
+
+<!-- 返回按钮链接请替换为你实际的首页地址 -->
+<a href="index-6.html" class="back-btn">← 返回生态</a>
+
+<div class="header">
+    <h1>🎮 RAYC 游戏中心</h1>
+    <p>享受 Web3 链上竞技的乐趣</p>
+</div>
+
+<div class="games-grid">
+    <!-- 卡片 1：街机大战 -->
+    <!-- ⚠️ 请把 href="#" 换成你刚才部署的射击游戏的 HTML 路径，例如 href="shooting.html" -->
+    <a href="fejiyouxi.html" class="game-card" style="border-color: rgba(236,72,153,0.4);">
+        <div class="game-icon">🚀</div>
+        <div class="game-title">星际飞机大战</div>
+        <div class="game-desc">消耗 RAYT 开启一局，挑战最高分数，还有雷达成像与道具掉落！</div>
+        <div class="tag hot">🔥 热门游戏</div>
+    </a>
+
+    <!-- 卡片 2：预留位置 -->
+    <a href="shuiguoji.html" class="game-card">
+        <div class="game-icon">🎲</div>
+        <div class="game-title">幸运数字大转盘</div>
+        <div class="game-desc">使用 RAYC 抽奖，赢取高额 USDT 奖池分红。敬请期待。</div>
+        <div class="tag">🔥 热门游戏</div>
+    </a>
+
+    <!-- 卡片 3：预留位置 -->
+    <a href="#" class="game-card">
+        <div class="game-icon">🧩</div>
+        <div class="game-title">Web3 消消乐</div>
+        <div class="game-desc">结合代币经济的三消游戏，过关即得空投奖励。</div>
+        <div class="tag">开发中</div>
+    </a>
+    
+    <!-- 卡片 4：预留位置 -->
+    <a href="#" class="game-card">
+        <div class="game-icon">⚔️</div>
+        <div class="game-title">NFT 英雄对决</div>
+        <div class="game-desc">派遣你的 NFT 战队与全网玩家进行自动对战。</div>
+        <div class="tag">规划中</div>
+    </a>
+</div>
+
+</body>
+</html>

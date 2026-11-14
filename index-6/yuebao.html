@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>余额宝 · RAYC</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui;background:radial-gradient(circle at 20% 30%,#0a0f2a,#030617);min-height:100vh;color:#f0f3ff;padding:16px}
+  .container{max-width:1100px;margin:0 auto}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .back-btn{background:rgba(43,110,240,.2);border:1px solid #4facfe;color:#8aa9ff;padding:8px 16px;border-radius:40px;font-size:14px;text-decoration:none;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+  .back-btn:hover{background:rgba(43,110,240,.4);color:#fff}
+  /* 标题改成链接样式 */
+  .title{font-size:22px;font-weight:800;background:linear-gradient(135deg,#aaffff,#4facfe);-webkit-background-clip:text;background-clip:text;color:transparent;flex:1;text-decoration:none;cursor:pointer;display:inline-block}
+  .title:hover{filter:brightness(1.2)}
+  
+  .connect-btn{background:linear-gradient(95deg,#2b6ef0,#1a4ed8);color:#fff;border:none;padding:10px 22px;border-radius:60px;font-weight:600;cursor:pointer;font-size:14px;box-shadow:0 4px 12px rgba(27,86,230,.4)}
+  .connect-btn:hover{filter:brightness(1.1)}
+  .connect-btn:disabled{opacity:.6;cursor:not-allowed}
+  .wallet{font-family:monospace;font-size:12px;color:#b3ceff;background:rgba(0,0,0,.4);padding:6px 14px;border-radius:40px;border-left:3px solid #4facfe}
+  .card{background:rgba(12,22,48,.7);border:1px solid rgba(79,172,254,.25);border-radius:24px;padding:20px;margin-bottom:20px}
+  .card h2{font-size:16px;margin-bottom:16px;border-left:4px solid #4facfe;padding-left:12px;color:#90b4ff}
+  .info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(79,172,254,.15);font-size:13px}
+  .info-row:last-child{border-bottom:none}
+  .label{color:#8fa2c6}
+  .value{font-weight:600;color:#facc15}
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .plan{border:1px solid #2f4b8f;border-radius:16px;padding:12px;background:rgba(0,0,0,.3);cursor:pointer;transition:.2s;text-align:center}
+  .plan.active{border-color:#4facfe;background:rgba(43,110,240,.2)}
+  .plan .days{font-size:13px;color:#8fa2c6}
+  .plan .rate{font-size:20px;font-weight:800;color:#4facfe;margin-top:4px}
+  .plan .rate small{font-size:12px;color:#8fa2c6;font-weight:400}
+  input{width:100%;padding:12px 16px;background:rgba(0,0,0,.5);border:1px solid #2f4b8f;border-radius:14px;color:#fff;font-size:14px;outline:none;margin:8px 0}
+  input:focus{border-color:#4facfe}
+  button.main{background:linear-gradient(95deg,#2b6ef0,#1a4ed8);border:none;padding:14px;border-radius:14px;font-weight:700;color:#fff;width:100%;margin-top:10px;cursor:pointer;font-size:15px}
+  button.main:hover{filter:brightness(1.1)}
+  .order{background:rgba(0,0,0,.3);border:1px solid #2f4b8f;border-radius:18px;padding:14px;margin-bottom:12px;font-size:13px}
+  .order-head{display:flex;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(79,172,254,.2)}
+  .order-id{background:#3b82f6;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+  .status{padding:2px 10px;border-radius:20px;font-size:11px}
+  .s-staking{background:#f59e0b20;color:#fbbf24}
+  .s-mature{background:#10b98120;color:#34d399}
+  .s-done{background:#6b728020;color:#9ca3af}
+  .order-actions{display:flex;gap:8px;margin-top:10px}
+  .btn-sm{flex:1;text-align:center;padding:9px;border-radius:24px;font-size:12px;font-weight:600;cursor:pointer;border:none;color:#fff}
+  .btn-claim{background:#10b981}
+  .btn-withdraw{background:#dc2626}
+  .btn-disabled{background:#4b5563;color:#9ca3af;cursor:not-allowed}
+  .loading{text-align:center;padding:20px;color:#8aa9ff;font-size:13px}
+  .err{color:#ff7b72;font-size:13px;text-align:center;padding:8px}
+  .net-warn{background:#b71c1c30;border-left:4px solid #f44336;padding:12px;border-radius:12px;margin-bottom:16px;display:none;font-size:13px}
+  .net-warn.show{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .net-warn button{background:#f44336;color:#fff;border:none;padding:6px 14px;border-radius:30px;cursor:pointer;font-size:12px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1f2b;border:1px solid #4facfe;color:#fff;padding:10px 24px;border-radius:40px;font-size:13px;display:none;z-index:999}
+  .toast.show{display:block}
+  .hint{font-size:12px;color:#8fa2c6;margin-top:6px;line-height:1.6}
+  footer{text-align:center;color:#5a647a;font-size:11px;margin-top:30px}
+  @media(max-width:600px){.plans{grid-template-columns:repeat(2,1fr)}.title{font-size:17px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <a class="back-btn" href="index-6.html">← 返回</a>
+    
+    <!-- 👇 这里改成了 <a> 标签，点击会在新窗口打开 👇 -->
+    <!-- 请把 href 里的 "https://你的外部链接地址.com" 换成你真实的链接 -->
+    <a class="title" href="https://www.rayc.raymondream.com/raymondchain/rayt/mining.html" target="_blank">🏦 余额宝 · <span id="tokenName">RAYC</span></a>
+    
+    <div class="wallet" id="walletInfo">未连接</div>
+    <button class="connect-btn" id="connectBtn">连接钱包</button>
+  </div>
+
+  <div id="netWarn" class="net-warn"></div>
+
+  <div class="card">
+    <h2>💰 我的资产</h2>
+    <div class="info-row"><span class="label">钱包余额</span><span class="value" id="walletBalance">-</span></div>
+    <div class="info-row"><span class="label">我的总本金</span><span class="value" id="totalPrincipal">-</span></div>
+    <div class="info-row"><span class="label">待领取总收益</span><span class="value" id="totalPending">-</span></div>
+    <div class="info-row"><span class="label">累计已领收益</span><span class="value" id="totalClaimed">-</span></div>
+    <div class="info-row"><span class="label">最低存款金额</span><span class="value" id="minDeposit">-</span></div>
+  </div>
+
+  <div class="card">
+    <h2>📈 选择产品</h2>
+    <div class="plans" id="plansBox"><div class="loading">加载中...</div></div>
+    <div style="font-size:12px;color:#8fa2c6;margin-bottom:8px;">存款数量（<span class="tokenName">RAYC</span>）</div>
+    <input id="depositAmount" type="number" placeholder="输入数量" step="0.01">
+    <div class="hint">💡 每日按本金计算收益，到期可提取本金，未到期不能提取本金。提现手续费 0.1%。</div>
+    <button class="main" id="depositBtn">立即存入</button>
+    <div class="err" id="depositMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>📋 我的存单</h2>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="main" id="claimAllBtn" style="margin-top:0">🎁 一键领取全部收益</button>
+      <button class="main" id="refreshBtn" style="margin-top:0;background:linear-gradient(95deg,#2f4b8f,#22355f);max-width:120px">刷新</button>
+    </div>
+    <div id="ordersBox"><div class="loading">加载中...</div></div>
+  </div>
+
+  <footer>⚡ 每日结算一次 · 单利计算 · 到期可提取本金</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== 合约配置（已写死您的地址） ====================
+const CONTRACT_ADDRESS = "0xd6B11a7731e6af4491e0327C0987cCd495A85307";
+const CHAIN_ID = 56; // BSC 主网
+
+const ABI = [
+  "function depositToken() view returns (address)",
+  "function tokenName() view returns (string)",
+  "function planCount() view returns (uint256)",
+  "function getAllPlans() view returns (tuple(uint256 lockDays, uint256 dailyRateBps, bool active)[])",
+  "function minDeposit() view returns (uint256)",
+  "function deposit(uint256 planId, uint256 amount)",
+  "function claimReward(uint256 depositId)",
+  "function claimAllRewards()",
+  "function withdraw(uint256 depositId)",
+  "function pendingReward(uint256 depositId) view returns (uint256)",
+  "function getUserDepositIds(address user) view returns (uint256[])",
+  "function getDeposit(uint256 id) view returns (tuple(address user, uint256 planId, uint256 principal, uint256 startTime, uint256 endTime, uint256 lastSettle, uint256 totalClaimed, bool withdrawn))",
+  "function withdrawFeeBps() view returns (uint256)",
+  "function blacklist(address) view returns (bool)"
+];
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+let provider, signer, contract, token, userAddr, decimals = 18, plans = [], tokenSymbol = "RAYC";
+let selectedPlanId = 1;
+const $ = id => document.getElementById(id);
+
+function toast(msg, ms=2500){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),ms); }
+function fmt(v){ if(v===undefined||v===null) return "0"; try{ return Number(ethers.utils.formatUnits(v, decimals)).toLocaleString(undefined,{maximumFractionDigits:4}); }catch(e){ return "0"; } }
+function parse(v){ return ethers.utils.parseUnits(String(v), decimals); }
+function fmtTime(ts){
+  if(!ts || Number(ts) === 0) return "-";
+  const d = new Date(Number(ts) * 1000);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+// 获取注入的 provider
+function getInjectedProvider(){
+  if (window.ethereum) return window.ethereum;
+  if (window.okxwallet && window.okxwallet.ethereum) return window.okxwallet.ethereum;
+  if (window.binancew3w && window.binancew3w.ethereum) return window.binancew3w.ethereum;
+  if (window.tokenpocket && window.tokenpocket.ethereum) return window.tokenpocket.ethereum;
+  return null;
+}
+
+// ==================== 连接钱包 ====================
+async function connectWallet(){
+  const connectBtn = $("connectBtn");
+  connectBtn.disabled = true;
+  connectBtn.textContent = "连接中...";
+  try {
+    const inj = getInjectedProvider();
+    if (!inj) {
+      alert("未检测到钱包！\n\n请在 TP钱包 / 小狐狸 / 欧易 / 币安 Web3 钱包的 DApp 浏览器中打开本页面。");
+      connectBtn.disabled = false;
+      connectBtn.textContent = "连接钱包";
+      return;
+    }
+
+    // 请求账户
+    await inj.request({ method: "eth_requestAccounts" });
+
+    // 创建 provider
+    provider = new ethers.providers.Web3Provider(inj);
+
+    // 检查网络
+    const net = await provider.getNetwork();
+    if (Number(net.chainId) !== CHAIN_ID) {
+      const w = $("netWarn");
+      w.classList.add("show");
+      w.innerHTML = `⚠️ 当前网络错误（当前 ${net.chainId}，需要 56），请切换到 BSC 主网 <button id="switchNetBtn">切换网络</button>`;
+      document.getElementById("switchNetBtn").onclick = async () => {
+        try {
+          await inj.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x38" }] });
+          window.location.reload();
+        } catch (e) {
+          alert("切换失败，请手动切换到 BSC 主网");
+        }
+      };
+      connectBtn.disabled = false;
+      connectBtn.textContent = "连接钱包";
+      return;
+    }
+    $("netWarn").classList.remove("show");
+
+    // 获取地址
+    signer = provider.getSigner();
+    userAddr = await signer.getAddress();
+    $("walletInfo").textContent = userAddr.slice(0,6) + "..." + userAddr.slice(-4);
+    connectBtn.textContent = "已连接";
+    connectBtn.disabled = false;
+
+    // 创建合约实例
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+    // 读取代币信息
+    const tokenAddr = await contract.depositToken();
+    token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+    try { decimals = await token.decimals(); } catch(e) { decimals = 18; }
+    try { tokenSymbol = await contract.tokenName(); } catch(e) {}
+    document.querySelectorAll(".tokenName").forEach(el => el.textContent = tokenSymbol);
+    
+    // 更新标题上的代币名称
+    if($("tokenName")) $("tokenName").textContent = tokenSymbol;
+
+    // 加载数据
+    await loadPlans();
+    await refreshAll();
+
+    // 监听切换账户
+    inj.on && inj.on("accountsChanged", () => window.location.reload());
+    inj.on && inj.on("chainChanged", () => window.location.reload());
+  } catch (err) {
+    console.error(err);
+    connectBtn.disabled = false;
+    connectBtn.textContent = "连接钱包";
+    const msg = err.message || String(err);
+    if (msg.includes("User rejected") || msg.includes("4001")) {
+      alert("您已拒绝连接请求");
+    } else {
+      alert("连接失败: " + msg);
+    }
+  }
+}
+
+// ==================== 加载产品 ====================
+async function loadPlans(){
+  try {
+    plans = await contract.getAllPlans();
+    let html = "";
+    for (let i = 0; i < plans.length; i++){
+      const p = plans[i];
+      if (!p.active) continue;
+      const days = Number(p.lockDays);
+      const rate = Number(p.dailyRateBps) / 100;
+      const label = days === 0 ? "活期" : days + "天";
+      html += `<div class="plan ${i === selectedPlanId ? "active" : ""}" data-id="${i}">
+        <div class="days">${label}</div>
+        <div class="rate">${rate.toFixed(2)}<small>%/日</small></div>
+      </div>`;
+    }
+    $("plansBox").innerHTML = html || '<div class="loading">暂无产品</div>';
+    document.querySelectorAll(".plan").forEach(el => {
+      el.onclick = () => {
+        document.querySelectorAll(".plan").forEach(e => e.classList.remove("active"));
+        el.classList.add("active");
+        selectedPlanId = Number(el.dataset.id);
+      };
+    });
+  } catch (err) {
+    console.error(err);
+    $("plansBox").innerHTML = '<div class="err">加载产品失败：' + (err.reason || err.message) + '</div>';
+  }
+}
+
+// ==================== 刷新 ====================
+async function refreshAll(){
+  if (!contract || !userAddr) return;
+  try {
+    const bal = await token.balanceOf(userAddr);
+    $("walletBalance").textContent = fmt(bal) + " " + tokenSymbol;
+
+    const minD = await contract.minDeposit();
+    $("minDeposit").textContent = fmt(minD) + " " + tokenSymbol;
+
+    const ids = await contract.getUserDepositIds(userAddr);
+    let totalPrincipal = ethers.BigNumber.from(0);
+    let totalPending = ethers.BigNumber.from(0);
+    let totalClaimed = ethers.BigNumber.from(0);
+    let ordersHtml = "";
+
+    for (let i = 0; i < ids.length; i++){
+      const id = ids[i];
+      const d = await contract.getDeposit(id);
+      const pending = await contract.pendingReward(id);
+      if (!d.withdrawn) totalPrincipal = totalPrincipal.add(d.principal);
+      if (!d.withdrawn) totalPending = totalPending.add(pending);
+      totalClaimed = totalClaimed.add(d.totalClaimed);
+
+      const plan = plans[Number(d.planId)];
+      const planDays = plan ? Number(plan.lockDays) : 0;
+      const planLabel = planDays === 0 ? "活期" : planDays + "天";
+      const now = Math.floor(Date.now()/1000);
+      const isMature = planDays === 0 || now >= Number(d.endTime);
+      const isDone = d.withdrawn;
+
+      let statusClass = isDone ? "s-done" : (isMature ? "s-mature" : "s-staking");
+      let statusText = isDone ? "✅ 已赎回" : (isMature ? "🔓 可提取" : "⏳ 锁仓中");
+
+      ordersHtml += `
+        <div class="order">
+          <div class="order-head">
+            <span class="order-id">订单 #${id} · ${planLabel}</span>
+            <span class="status ${statusClass}">${statusText}</span>
+          </div>
+          <div class="info-row"><span class="label">本金</span><span class="value">${fmt(d.principal)} ${tokenSymbol}</span></div>
+          <div class="info-row"><span class="label">存入时间</span><span class="value">${fmtTime(d.startTime)}</span></div>
+          <div class="info-row"><span class="label">到期时间</span><span class="value">${planDays===0?"随时可提取":fmtTime(d.endTime)}</span></div>
+          <div class="info-row"><span class="label">待领收益</span><span class="value">${fmt(pending)} ${tokenSymbol}</span></div>
+          <div class="info-row"><span class="label">已领累计</span><span class="value">${fmt(d.totalClaimed)} ${tokenSymbol}</span></div>
+          ${isDone ? '' : `
+          <div class="order-actions">
+            <button class="btn-sm btn-claim" onclick="claimOne(${id})">领取收益</button>
+            ${isMature ? `<button class="btn-sm btn-withdraw" onclick="withdrawOne(${id})">提取本金</button>` : `<button class="btn-sm btn-disabled" disabled>未到期</button>`}
+          </div>`}
+        </div>`;
+    }
+
+    $("totalPrincipal").textContent = fmt(totalPrincipal) + " " + tokenSymbol;
+    $("totalPending").textContent = fmt(totalPending) + " " + tokenSymbol;
+    $("totalClaimed").textContent = fmt(totalClaimed) + " " + tokenSymbol;
+    $("ordersBox").innerHTML = ids.length === 0 ? '<div class="loading">暂无存单，快去存入吧 🚀</div>' : ordersHtml;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ==================== 操作 ====================
+window.claimOne = async function(id){
+  try { const tx = await contract.claimReward(id); toast("提交中..."); await tx.wait(); toast("✅ 领取成功"); await refreshAll(); }
+  catch(err){ console.error(err); toast("❌ " + (err.reason || err.message)); }
+};
+window.withdrawOne = async function(id){
+  if (!confirm("确定提取本金吗？将扣除 0.1% 手续费")) return;
+  try { const tx = await contract.withdraw(id); toast("提交中..."); await tx.wait(); toast("✅ 提取成功"); await refreshAll(); }
+  catch(err){ console.error(err); toast("❌ " + (err.reason || err.message)); }
+};
+
+async function doDeposit(){
+  try {
+    if (!contract) { alert("请先连接钱包"); return; }
+    const amt = $("depositAmount").value;
+    if (!amt || Number(amt) <= 0) { toast("请输入有效数量"); return; }
+    const amount = parse(amt);
+    const minD = await contract.minDeposit();
+    if (amount.lt(minD)) { toast(`低于最低存款 ${fmt(minD)} ${tokenSymbol}`); return; }
+    const bal = await token.balanceOf(userAddr);
+    if (bal.lt(amount)) { toast("余额不足"); return; }
+    const allowance = await token.allowance(userAddr, CONTRACT_ADDRESS);
+    if (allowance.lt(amount)) {
+      toast("授权中...");
+      const atx = await token.approve(CONTRACT_ADDRESS, ethers.constants.MaxUint256);
+      await atx.wait();
+    }
+    const tx = await contract.deposit(selectedPlanId, amount);
+    toast("存入中...");
+    await tx.wait();
+    toast("✅ 存入成功");
+    $("depositAmount").value = "";
+    await refreshAll();
+  } catch(err) { console.error(err); toast("❌ " + (err.reason || err.message)); }
+}
+
+async function claimAll(){
+  try { if (!contract) { alert("请先连接钱包"); return; } const tx = await contract.claimAllRewards(); toast("提交中..."); await tx.wait(); toast("✅ 全部收益已领取"); await refreshAll(); }
+  catch(err){ console.error(err); toast("❌ " + (err.reason || err.message)); }
+}
+
+$("connectBtn").onclick = connectWallet;
+$("depositBtn").onclick = doDeposit;
+$("claimAllBtn").onclick = claimAll;
+$("refreshBtn").onclick = refreshAll;
+
+// 自动连接（如果之前已授权）
+window.addEventListener("load", async () => {
+  const inj = getInjectedProvider();
+  if (inj) {
+    try {
+      const accs = await inj.request({ method: "eth_accounts" });
+      if (accs && accs.length > 0) connectWallet();
+    } catch(e) {}
+  }
+});
+
+setInterval(() => { if (userAddr) refreshAll(); }, 30000);
+</script>
+</body>
+</html>
