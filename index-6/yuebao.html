@@ -77,6 +77,33 @@ button.main{width:100%;margin-top:10px;padding:12px 15px;border:0;border-radius:
 footer{text-align:left;color:#77799b;font-size:10px;margin-top:6px;padding:0 3px}
 @media(max-width:950px){body{padding:12px}.container{grid-template-columns:70px minmax(0,1fr)}.sidebar{padding:20px 7px}.brand{justify-content:center;padding:0 0 24px}.brand-name,.nav-caption,.nav-text,.side-foot{display:none}.nav-item{justify-content:center;padding:12px 4px}.dashboard-grid{grid-template-columns:1fr}.leftcol{display:grid;grid-template-columns:1fr 1fr}.leftcol .card:first-child{grid-column:1/-1}}
 @media(max-width:600px){body{padding:0}.container{display:block;min-height:100vh;border-radius:0;border:0} .sidebar{display:none}main{padding:17px 13px 24px}.topbar{align-items:flex-start}.welcome h1{font-size:19px}.top-actions{flex-direction:column;align-items:flex-end;gap:7px}.wallet{font-size:10px}.dashboard-grid{grid-template-columns:1fr}.leftcol{display:flex}.plans{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:16px}.info-row{font-size:11px}}
+
+/* Mobile navigation: keep every sidebar destination accessible in wallet browsers */
+.header-left{display:flex;align-items:center;gap:14px;min-width:0}
+.mobile-menu-toggle{display:none;width:42px;height:42px;flex:0 0 42px;border:1px solid #39395f;border-radius:11px;background:#1d1e38;align-items:center;justify-content:center;flex-direction:column;gap:5px;cursor:pointer;box-shadow:0 4px 15px #0003}
+.mobile-menu-toggle span{display:block;width:19px;height:2px;border-radius:2px;background:#d8c8ff;transition:transform .2s,opacity .2s}
+.mobile-menu-backdrop{display:none}
+@media(max-width:600px){
+  .mobile-menu-toggle{display:flex}
+  .topbar{align-items:center;flex-wrap:nowrap;gap:8px}
+  .header-left{gap:10px;flex:1}
+  .welcome h1{font-size:20px}
+  .welcome p{font-size:11px}
+  .top-actions{flex:0 0 auto;max-width:48%;align-items:flex-end}
+  .wallet{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sidebar{display:flex!important;position:fixed;z-index:1002;left:0;top:0;bottom:0;width:min(290px,82vw);height:100dvh;min-height:100vh;padding:24px 15px 18px;transform:translateX(-105%);transition:transform .24s ease;box-shadow:16px 0 45px #0009;border-right:1px solid #55457f;overflow-y:auto}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .brand{justify-content:flex-start;padding:0 8px 26px}
+  .brand-name,.nav-caption,.nav-text,.side-foot{display:block}
+  .nav-caption{padding:9px 11px}
+  .nav-item{justify-content:flex-start;padding:12px 12px;margin:3px 0;font-size:13px}
+  .nav-icon{width:18px}
+  .mobile-menu-backdrop{display:block;position:fixed;z-index:1001;inset:0;background:rgba(4,4,17,.68);opacity:0;visibility:hidden;transition:opacity .24s,visibility .24s;backdrop-filter:blur(3px)}
+  .mobile-menu-backdrop.visible{opacity:1;visibility:visible}
+  body.menu-open{overflow:hidden}
+}
+@media(min-width:601px){.mobile-menu-backdrop{display:none!important}}
+
 </style>
 </head>
 <body>
@@ -93,9 +120,15 @@ footer{text-align:left;color:#77799b;font-size:10px;margin-top:6px;padding:0 3px
     <a class="nav-item" href="#"><span class="nav-icon">◐</span><span class="nav-text">主题 Theme</span></a>
     <div class="side-foot">SECURE ON-CHAIN STAKING<br>BNB SMART CHAIN · BSC 56</div>
   </aside>
+  <div class="mobile-menu-backdrop" id="mobileMenuBackdrop"></div>
   <main>
     <header class="topbar">
-      <div class="welcome"><h1>Staking</h1><p>欢迎回来 · 管理你的数字资产</p></div>
+      <div class="header-left">
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="打开导航菜单" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="welcome"><h1>Staking</h1><p>欢迎回来 · 管理你的数字资产</p></div>
+      </div>
       <div class="top-actions"><div class="wallet" id="walletInfo">未连接</div><button class="connect-btn" id="connectBtn">连接钱包</button></div>
     </header>
     <div id="netWarn" class="net-warn"></div>
@@ -442,5 +475,29 @@ window.addEventListener("load", async () => {
 });
 
 setInterval(() => { if (userAddr) refreshAll(); }, 30000);
-</script></body>
+</script>
+<script>
+(function(){
+  const sidebar=document.querySelector('.sidebar');
+  const toggle=document.getElementById('mobileMenuToggle');
+  const backdrop=document.getElementById('mobileMenuBackdrop');
+  if(!sidebar||!toggle||!backdrop)return;
+  function openMenu(){
+    sidebar.classList.add('mobile-open');backdrop.classList.add('visible');
+    document.body.classList.add('menu-open');toggle.setAttribute('aria-expanded','true');
+    toggle.setAttribute('aria-label','关闭导航菜单');
+  }
+  function closeMenu(){
+    sidebar.classList.remove('mobile-open');backdrop.classList.remove('visible');
+    document.body.classList.remove('menu-open');toggle.setAttribute('aria-expanded','false');
+    toggle.setAttribute('aria-label','打开导航菜单');
+  }
+  toggle.addEventListener('click',function(){sidebar.classList.contains('mobile-open')?closeMenu():openMenu();});
+  backdrop.addEventListener('click',closeMenu);
+  sidebar.querySelectorAll('.nav-item').forEach(function(link){link.addEventListener('click',closeMenu);});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMenu();});
+  window.addEventListener('resize',function(){if(window.innerWidth>600)closeMenu();});
+})();
+</script>
+</body>
 </html>
